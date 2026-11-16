@@ -43,11 +43,17 @@ class HistorialPagoAdapter(
 
         holder.txtSocioInfo.text = "${item.nombreCompleto}  •  DNI: ${item.dni}"
 
-        val mes = item.fechaVencimiento.month
-            .getDisplayName(TextStyle.FULL, Locale("es", "ES"))
-            .replaceFirstChar { it.uppercase() }
-        val anio = item.fechaVencimiento.year
-        holder.txtCuota.text = if (item.tipo == TipoCuota.MENSUAL) "Cuota $mes $anio" else "Cuota Diaria"
+        val fechaPago = item.fechaPago
+        holder.txtCuota.text = when {
+            item.tipo == TipoCuota.DIARIA -> "Cuota Diaria"
+            fechaPago == null -> "Cuota Mensual"
+            else -> {
+                val mes = fechaPago.month
+                    .getDisplayName(TextStyle.FULL, Locale("es", "ES"))
+                    .replaceFirstChar { it.uppercase() }
+                "Cuota $mes ${fechaPago.year}"
+            }
+        }
 
         holder.txtVenc.text = item.fechaVencimiento.format(formatterFecha)
         holder.txtTipoCuota.text = if (item.tipo == TipoCuota.MENSUAL) "Socio" else "No Socio"
