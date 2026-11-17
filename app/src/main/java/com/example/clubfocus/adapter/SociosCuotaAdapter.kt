@@ -8,10 +8,8 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.example.clubfocus.R
+import com.example.clubfocus.data.entity.EstadoCuota
 import com.example.clubfocus.data.entity.SocioCuotaItem
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
 
 class SociosCuotaAdapter(
     private var cuotas: List<SocioCuotaItem>,
@@ -50,27 +48,12 @@ class SociosCuotaAdapter(
             "Vence: ${cuota.fechaVencimiento}"
         }
 
-        val fechaVenc = try {
-            LocalDate.parse(cuota.fechaVencimiento, DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-        } catch (_: DateTimeParseException) {
-            try {
-                LocalDate.parse(cuota.fechaVencimiento)
-            } catch (_: Exception) {
-                null
-            }
-        }
-
-        val hoy = LocalDate.now()
-
-        // Regla: Únicamente dos estados posibles
-        if (fechaVenc != null && hoy.isAfter(fechaVenc)) {
-            // Pasó la fecha límite (a partir de las 00:00 del día siguiente)
+        if (cuota.estadoCuota == EstadoCuota.VENCIDA.name) {
             holder.estadoCuota.text = "Vencida"
             holder.estadoCuota.setBackgroundResource(R.drawable.label_danger)
             holder.estadoCuota.setTextColor(ContextCompat.getColor(context, R.color.badge_vencida_text))
             holder.estadoSocio.visibility = View.VISIBLE
         } else {
-            // Es la fecha límite actual (hoy tiene acceso todavía)
             holder.estadoCuota.text = "Vence hoy"
             holder.estadoCuota.setBackgroundResource(R.drawable.label_warning)
             holder.estadoCuota.setTextColor(ContextCompat.getColor(context, R.color.badge_pendiente_text))

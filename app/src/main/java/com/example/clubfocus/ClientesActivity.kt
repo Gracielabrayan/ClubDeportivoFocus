@@ -1,7 +1,9 @@
 package com.example.clubfocus
 
 import android.graphics.Color
+import android.database.sqlite.SQLiteException
 import android.os.Bundle
+import android.util.Patterns
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
@@ -276,8 +278,21 @@ class ClientesActivity : AppCompatActivity() {
     private fun asociarCliente() {
 
         val cliente = clienteSeleccionado ?: return
+        val errorDatos = validarCorreoYApto(cliente.email, cliente.aptoFisico)
+        if (errorDatos != null) {
+            Toast.makeText(
+                this,
+                getString(R.string.clientes_asociar_datos_incompletos, getString(errorDatos)),
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
 
-        val resultado = dbHelper.asociarCliente(cliente.id)
+        val resultado = try {
+            dbHelper.asociarCliente(cliente.id)
+        } catch (_: SQLiteException) {
+            0
+        }
 
         if (resultado > 0) {
 
@@ -327,6 +342,12 @@ class ClientesActivity : AppCompatActivity() {
                 "Completá los campos obligatorios",
                 Toast.LENGTH_SHORT
             ).show()
+            return
+        }
+
+        val errorDatos = validarCorreoYApto(email, aptoFisico)
+        if (errorDatos != null) {
+            Toast.makeText(this, errorDatos, Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -382,5 +403,11 @@ class ClientesActivity : AppCompatActivity() {
                 Toast.LENGTH_SHORT
             ).show()
         }
+    }
+
+    private fun validarCorreoYApto(email: String, aptoFisico: Boolean): Int? = when {
+        !Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() -> R.string.clientes_correo_obligatorio
+        !aptoFisico -> R.string.clientes_apto_obligatorio
+        else -> null
     }
 }

@@ -2,6 +2,7 @@ package com.example.clubfocus
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.database.sqlite.SQLiteException
 import android.os.Bundle
 import android.view.MotionEvent
 import android.view.inputmethod.EditorInfo
@@ -13,6 +14,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.widget.doAfterTextChanged
 import com.example.clubfocus.data.entity.Cliente
 import com.example.clubfocus.data.entity.Cuota
 import com.example.clubfocus.data.entity.MedioPago
@@ -22,6 +24,7 @@ import com.example.clubfocus.data.repository.CuotaRepository
 import com.example.clubfocus.helperDB.ClientesDBHelper
 import com.example.clubfocus.helperDB.CuotasDBHelper
 import com.example.clubfocus.helperDB.CarnetDBHelper
+import java.time.LocalDate
 class CobrarCuotaActivity : AppCompatActivity() {
 
     // Una única instancia para toda la Activity
@@ -107,24 +110,30 @@ class CobrarCuotaActivity : AppCompatActivity() {
             )
         }
 
-        // CUOTA PENDIENTE DEl CLIENTE
-        fun cargarCuotaDeCliente(clienteEncontrado: Cliente?) {
-
+        fun limpiarCobro() {
             cliente = null
             cuota = null
             btnConfirmarPago.isEnabled = false
+            rgMedioPago.clearCheck()
+            rgPromo.clearCheck()
+            rbPagoEfectivo.isEnabled = false
+            rbPagoTarjeta.isEnabled = false
+            rbPagoDebito.isEnabled = false
+            rbPromo3.isEnabled = false
+            rbPromo6.isEnabled = false
+            concepto.setText(R.string.label_concepto_cuota)
+            monto.setText(R.string.monto_inicial_cero)
+            total.setText(R.string.monto_inicial_final)
+            descuento.setText(R.string.descuento_inicial_cero)
+        }
 
-            if (clienteEncontrado == null) {
-                Toast.makeText(
-                    this,
-                    "No se encontró el cliente",
-                    Toast.LENGTH_SHORT
-                ).show()
-                return
+        limpiarCobro()
+        dniCliente.doAfterTextChanged { limpiarCobro() }
+
+        fun cargarCuotaDeCliente(clienteEncontrado: Cliente) {
+            if (dniCliente.text.toString() != clienteEncontrado.dni) {
+                dniCliente.setText(clienteEncontrado.dni)
             }
-
-            cliente = clienteEncontrado
-            dniCliente.setText(clienteEncontrado.dni)
 
             var cuotaEncontrada = cuotasHelper.obtenerCuotaImpagaPorCliente(clienteEncontrado.id)
 
@@ -145,16 +154,23 @@ class CobrarCuotaActivity : AppCompatActivity() {
                     esSocio = clienteEncontrado.esSocio
                 )
 
-                cuotasHelper.generarCuotaInicial(
+                val cuotaId = cuotasHelper.generarCuotaInicial(
                     cuotaAPAgar.clienteId,
                     cuotaAPAgar.tipo,
                     cuotaAPAgar.monto,
                     cuotaAPAgar.montoFinal,
-                    cuotaAPAgar.fechaVencimiento)
+                    cuotaAPAgar.fechaVencimiento
+                )
 
-                cuotaEncontrada = cuotaAPAgar
+                if (cuotaId == -1L) {
+                    Toast.makeText(this, "No se pudo generar la cuota", Toast.LENGTH_SHORT).show()
+                    return
+                }
+
+                cuotaEncontrada = cuotaAPAgar.copy(id = cuotaId.toInt())
             }
 
+            cliente = clienteEncontrado
             cuota = cuotaEncontrada
 
             concepto.text = when (cuotaEncontrada.tipo) {
@@ -209,6 +225,7 @@ class CobrarCuotaActivity : AppCompatActivity() {
         // Buscar cliente por dni
         fun buscarDni() {
             val dni = dniCliente.text.toString().trim()
+            limpiarCobro()
 
             if (dni.isBlank()) {
                 Toast.makeText(
@@ -216,10 +233,6 @@ class CobrarCuotaActivity : AppCompatActivity() {
                     "Ingresá un DNI",
                     Toast.LENGTH_SHORT
                 ).show()
-
-                cliente = null
-                cuota = null
-                btnConfirmarPago.isEnabled = false
 
                 return
             }
@@ -346,20 +359,10 @@ class CobrarCuotaActivity : AppCompatActivity() {
             cuotaActual.medioPago = formaPago
             CuotaRepository.aplicarPromocion(cuotaActual, promocion)
 
-            val detalle = when (promocion) {
-                Promocion.TRES_CUOTAS -> "3 cuotas. 15% de descuento"
-                Promocion.SEIS_CUOTAS -> "6 cuotas. 10% de descuento"
-                else -> if (formaPago == MedioPago.EFECTIVO) {
-                    "Pago en efectivo"
-                } else {
-                    "Pago con tarjeta sin promoción"
-                }
-            }
-
-            // Registrar el pago en SQLite.
+            val fechaPago = LocalDate.now()
             val resultado = cuotasHelper.registrarPago(
                 cuotaActual.id,
-                fechaPago = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                fechaPago = fechaPago,
                 montoFinal = cuotaActual.montoFinal,
                 medioPago = formaPago,
                 promocion = promocion,
@@ -369,22 +372,18 @@ class CobrarCuotaActivity : AppCompatActivity() {
             if (resultado == 1) {
                 btnConfirmarPago.isEnabled = false
 
-                if(clienteActual.esSocio){
-                    val carnetExistente = carnetHelper.buscarCarnetPorDni(clienteActual.dni)
-
-                    if (carnetExistente == null) {
-                        // El socio todavía no tiene carnet.
-                        carnetHelper.crearCarnet(clienteActual.nroSocio)
-                    } else {
-                        // El socio ya tiene carnet: renovamos su vigencia.
-                        carnetHelper.renovarCarnet(carnetExistente.id)
+                if (clienteActual.esSocio && cuotaActual.tipo == TipoCuota.MENSUAL) {
+                    try {
+                        carnetHelper.emitirORenovarPorPago(clienteActual.nroSocio, fechaPago)
+                    } catch (_: SQLiteException) {
+                        Toast.makeText(this, R.string.carnet_error_despues_del_pago, Toast.LENGTH_LONG).show()
                     }
                 }
 
                 val intent = Intent(this, ConfirmarPagoActivity::class.java
                 ).apply {
                     putExtra("esSocio", clienteActual.esSocio)
-                    putExtra("detallePago", detalle)
+                    putExtra(ComprobantePagoExitoso.EXTRA_CUOTA_ID, cuotaActual.id)
                     putExtra("clienteDNI", clienteActual.dni)
                 }
 

@@ -11,12 +11,22 @@
     <string name="image_description">Logo club deportivo Focus</string>
     <string name="hint_contrasena">••••••••</string>
     <string name="btn_ingresar">INGRESAR</string>
+    <string name="login_configurar_superadmin">Creá la cuenta SuperAdmin del club. Elegí una contraseña de 12 a 128 caracteres.</string>
+    <string name="login_crear_superadmin">CREAR SUPERADMIN</string>
+    <string name="login_confirmar_contrasena">Repetí la contraseña</string>
+    <string name="contrasena_requisitos">Elegí una contraseña de 12 a 128 caracteres.</string>
+    <string name="login_contrasenas_distintas">Las contraseñas no coinciden.</string>
+    <string name="login_datos_incorrectos">Usuario o contraseña incorrectos.</string>
+    <string name="login_error_alta_superadmin">No se pudo crear el SuperAdmin. Verificá que el usuario esté disponible.</string>
+    <string name="login_error_base">No se pudo acceder a los datos de la aplicación.</string>
+    <string name="login_reintentar">REINTENTAR</string>
+    <string name="login_contactar_soporte">Contactá al área de sistemas del club.</string>
     <string name="forgot_password">¿Olvidaste tu contraseña?</string>
     <string name="copyright">© 2026 Club Deportivo Focus</string>
 
     <!-- Textos para la pantalla Home -->
     <string name="home_welcome">Hola, de nuevo</string>
-    <string name="home_user_role">USUARIO • ADMINISTRADOR</string>
+    <string name="home_user_role">Usuario</string>
     <string name="btn_registrar_socio">REGISTRAR SOCIO / NO SOCIO</string>
     <string name="btn_cobro_cuotas">COBRO DE CUOTAS</string>
     <string name="btn_vencimientos">VENCIMIENTOS</string>
@@ -62,12 +72,11 @@
     <string name="registrar_label_fecha_nacimiento">* FECHA DE NACIMIENTO</string>
     <string name="registrar_label_correo">* CORREO ELECTRONICO</string>
 
-    <!-- Textos de ejemplo dentro de los campos (Hints) -->
-    <string name="registrar_hint_nombre">Juan</string>
-    <string name="registrar_hint_apellido">Perez</string>
-    <string name="registrar_hint_dni">12345678</string>
-    <string name="registrar_hint_fecha_nacimiento">07/11/2003</string>
-    <string name="registrar_hint_correo">correo@ejemplo.com</string>
+    <string name="registrar_hint_nombre">Nombre</string>
+    <string name="registrar_hint_apellido">Apellido</string>
+    <string name="registrar_hint_dni">DNI</string>
+    <string name="registrar_hint_fecha_nacimiento">dd/mm/aaaa</string>
+    <string name="registrar_hint_correo">Correo electrónico</string>
 
     <!-- Botón final -->
     <string name="registrar_btn_guardar">GUARDAR REGISTRO</string>
@@ -98,5 +107,41 @@
     <string name="cliente_encontrado_format">Cliente encontrado: %1$s %2$s</string>
 
     <string name="btn_confirmar_pago">confirmar pago</string>
+    <string name="clientes_correo_obligatorio">Ingresá un correo electrónico válido.</string>
+    <string name="clientes_apto_obligatorio">Marcá que el cliente presentó el apto físico.</string>
+    <string name="clientes_asociar_datos_incompletos">Editá la ficha antes de asociar al cliente. %1$s</string>
+
+    <string name="comprobante_pago_no_encontrado">No se encontró el pago para este comprobante.</string>
+    <string name="comprobante_fecha">Fecha: %1$s</string>
+    <string name="comprobante_nombre">A nombre de: %1$s</string>
+    <string name="comprobante_dni">DNI: %1$s</string>
+    <string name="comprobante_concepto">En concepto de: %1$s</string>
+    <string name="comprobante_medio">Medio de pago: %1$s</string>
+    <string name="comprobante_detalle">Detalle: %1$s</string>
+    <string name="comprobante_cuota_mensual">Cuota mensual</string>
+    <string name="comprobante_cuota_diaria">Cuota diaria</string>
+    <string name="comprobante_sin_promocion">Sin promoción</string>
+    <string name="comprobante_titulo">Comprobante de pago</string>
+    <string name="comprobante_ver">Ver comprobante</string>
+    <string name="comprobante_referencia">N.º de cuota %1$d</string>
+    <string name="comprobante_total_abonado">Total abonado</string>
+    <string name="comprobante_pdf_opciones">PDF del comprobante</string>
+    <string name="pdf_abrir">Abrir PDF</string>
+    <string name="pdf_guardar">Guardar PDF</string>
+    <string name="pdf_compartir">Compartir PDF</string>
+    <string name="pdf_guardado">PDF guardado.</string>
+    <string name="pdf_error">No se pudo preparar el PDF. Volvé a intentar.</string>
+    <string name="pdf_sin_app">No hay una aplicación disponible para completar esta acción.</string>
+    <string name="pdf_no_disponible">El documento ya no está disponible para exportar.</string>
+    <string name="carnet_titulo">Carnet de socio</string>
+    <string name="carnet_ver">Ver carnet (solo socios)</string>
+    <string name="carnet_pdf_opciones">PDF del carnet</string>
+    <string name="carnet_pdf_numero">N.º de socio %1$s</string>
+    <string name="carnet_pdf_socio">Socio: %1$s</string>
+    <string name="carnet_pdf_emision">Fecha de emisión: %1$s</string>
+    <string name="carnet_pdf_vencimiento">Fecha de vencimiento: %1$s</string>
+    <string name="carnet_no_disponible">El cliente no tiene un carnet habilitado.</string>
+    <string name="carnet_error_despues_del_pago">El pago se registró, pero no se pudo emitir o renovar el carnet.</string>
+    <string name="registro_error_alta">No se pudo guardar el registro y su cuota inicial. Volvé a intentar.</string>
 
 </resources>

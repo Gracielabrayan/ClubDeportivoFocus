@@ -27,8 +27,7 @@ class ConfirmarPagoActivity : AppCompatActivity() {
         val dni =
             intent.getStringExtra("clienteDNI") ?: ""
 
-        val detallePago =
-            intent.getStringExtra("detallePago") ?: ""
+        val cuotaId = intent.getIntExtra(ComprobantePagoExitoso.EXTRA_CUOTA_ID, -1)
 
         btnCarnet.alpha = 1f
 
@@ -38,9 +37,7 @@ class ConfirmarPagoActivity : AppCompatActivity() {
 
             val intent = Intent(this, ComprobantePagoExitoso::class.java)
 
-            intent.putExtra("clienteDNI", dni)
-
-            intent.putExtra("detallePago", detallePago)
+            intent.putExtra(ComprobantePagoExitoso.EXTRA_CUOTA_ID, cuotaId)
 
             startActivity(intent)
         }

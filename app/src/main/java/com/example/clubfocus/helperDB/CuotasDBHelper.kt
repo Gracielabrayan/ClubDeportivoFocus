@@ -3,27 +3,21 @@ package com.example.clubfocus.helperDB
 import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteOpenHelper
+import android.database.sqlite.SQLiteException
+import androidx.core.database.sqlite.transaction
 import com.example.clubfocus.data.entity.Cuota
 import com.example.clubfocus.data.entity.EstadoCuota
 import com.example.clubfocus.data.entity.MedioPago
 import com.example.clubfocus.data.entity.PagoHistorialItem
 import com.example.clubfocus.data.entity.Promocion
 import com.example.clubfocus.data.entity.TipoCuota
+import com.example.clubfocus.data.repository.CuotaRepository
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 
 @Suppress("unused")
-class CuotasDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db", null, 1) {
-
-    override fun onCreate(db: SQLiteDatabase) {
-        DBTablas.crearTodasLasTablas(db)
-    }
-
-    override fun onUpgrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) {
-        //TO DO
-    }
+class CuotasDBHelper(context: Context) : ClubFocusDBHelper(context) {
 
     fun generarCuotaInicial(
         clienteId: Int,
@@ -31,71 +25,51 @@ class CuotasDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db
         monto: Double,
         montoFinal: Double,
         fechaVencimiento: LocalDate
-    ): Long {
-        val db = writableDatabase
-        val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-
-        val valores = ContentValues().apply {
-            put("cliente_id", clienteId)
-            put("tipo", tipo.name)
-            put("monto", monto)
-            put("monto_final", montoFinal)
-            putNull("fecha_pago")
-            put("fecha_vencimiento", fechaVencimiento.format(formatter))
-            putNull("medio_pago")
-            putNull("promocion")
-            put("estado", EstadoCuota.PENDIENTE.name)
-        }
-
-        return db.insert("cuotas", null, valores)
+    ): Long = try {
+        insertarCuotaInicial(writableDatabase, clienteId, tipo, monto, montoFinal, fechaVencimiento)
+    } catch (_: SQLiteException) {
+        -1L
     }
 
     fun registrarPago(
         cuotaId: Int,
         clienteId: Int,
-        fechaPago: String,
+        fechaPago: LocalDate,
         montoFinal: Double,
         medioPago: MedioPago,
         promocion: Promocion?
-    ): Int {
-        val db = writableDatabase
+    ): Int = writableDatabase.transaction {
+        val condicion = "id = ? AND cliente_id = ? AND estado IN (?, ?)"
+        val argumentos = arrayOf(
+            cuotaId.toString(), clienteId.toString(),
+            EstadoCuota.PENDIENTE.name, EstadoCuota.VENCIDA.name
+        )
+        val tipo = rawQuery("SELECT tipo FROM cuotas WHERE $condicion", argumentos).use { cursor ->
+            if (cursor.moveToFirst()) TipoCuota.valueOf(cursor.getString(0)) else null
+        } ?: return@transaction 0
+        val formato = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
         val valores = ContentValues().apply {
-            put("fecha_pago", fechaPago)
+            put("fecha_pago", fechaPago.format(formato))
             put("monto_final", montoFinal)
             put("medio_pago", medioPago.name)
             put("promocion", promocion?.name)
             put("estado", EstadoCuota.PAGADA.name)
-        }
-
-        db.beginTransaction()
-        try {
-            val filasActualizadas = db.update(
-                "cuotas",
-                valores,
-                "id = ?",
-                arrayOf(cuotaId.toString())
-            )
-
-            if (filasActualizadas > 0) {
-                val valoresCliente = ContentValues().apply {
-                    put("activo", 1)
-                }
-
-                db.update(
-                    "clientes",
-                    valoresCliente,
-                    "id = ?",
-                    arrayOf(clienteId.toString())
-                )
+            if (tipo == TipoCuota.MENSUAL) {
+                val vencimiento = CuotaRepository.calcularFechaVencimiento(fechaPago, tipo)
+                put("fecha_vencimiento", vencimiento.format(formato))
             }
-
-            db.setTransactionSuccessful()
-            return filasActualizadas
-
-        } finally {
-            db.endTransaction()
         }
+
+        val filasActualizadas = update("cuotas", valores, condicion, argumentos)
+        if (filasActualizadas > 0) {
+            val valoresCliente = ContentValues().apply { put("activo", 1) }
+            val condicionCliente = if (tipo == TipoCuota.MENSUAL) "id = ?" else "id = ? AND es_socio = 0"
+            update(
+                "clientes", valoresCliente, condicionCliente, arrayOf(clienteId.toString())
+            )
+        }
+        filasActualizadas
     }
 
     fun tieneCuotaVigente(dniCliente: String): Boolean {
@@ -111,6 +85,7 @@ class CuotasDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db
                 ON c.id = q.cliente_id
             WHERE c.dni = ?
               AND UPPER(q.estado) = 'PAGADA'
+              AND q.tipo = CASE WHEN c.es_socio = 1 THEN 'MENSUAL' ELSE 'DIARIA' END
         """.trimIndent(),
             arrayOf(dniCliente)
         ).use { cursor ->
@@ -147,40 +122,52 @@ class CuotasDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db
         }
     }
 
-    data class UltimoPago(
+    data class PagoParaComprobante(
+        val nombreCompleto: String,
+        val dni: String,
+        val fechaPago: String,
+        val tipo: TipoCuota,
         val montoFinal: Double,
-        val medioPago: String
+        val medioPago: MedioPago,
+        val promocion: Promocion?
     )
 
-    fun obtenerUltimoPago(dniCliente: String): UltimoPago? {
-        val db = readableDatabase
-        val cursor = db.rawQuery(
+    fun obtenerPagoParaComprobante(cuotaId: Int): PagoParaComprobante? {
+        return readableDatabase.rawQuery(
             """
-                SELECT cuotas.monto_final, cuotas.medio_pago
-                FROM cuotas
-                INNER JOIN clientes
-                    ON cuotas.cliente_id = clientes.id
-                WHERE clientes.dni = ? AND UPPER(cuotas.estado) = 'PAGADA'
-                ORDER BY cuotas.id DESC
-                LIMIT 1
+                SELECT c.nombre, c.apellido, c.dni, q.fecha_pago,
+                       q.tipo, q.monto_final, q.medio_pago, q.promocion
+                FROM cuotas q
+                INNER JOIN clientes c ON q.cliente_id = c.id
+                WHERE q.id = ? AND UPPER(q.estado) = 'PAGADA'
             """.trimIndent(),
-            arrayOf(dniCliente)
-        )
-        var pago: UltimoPago? = null
+            arrayOf(cuotaId.toString())
+        ).use { cursor ->
+            if (!cursor.moveToFirst()) return@use null
 
-        if (cursor.moveToFirst()) {
-            val monto = cursor.getDouble(cursor.getColumnIndexOrThrow("monto_final"))
+            val fechaPago = cursor.getString(cursor.getColumnIndexOrThrow("fecha_pago"))
             val medio = cursor.getString(cursor.getColumnIndexOrThrow("medio_pago"))
-            pago = UltimoPago(monto, medio)
-        }
+            if (fechaPago.isNullOrBlank() || medio.isNullOrBlank()) return@use null
 
-        cursor.close()
-        return pago
+            val nombre = cursor.getString(cursor.getColumnIndexOrThrow("nombre"))
+            val apellido = cursor.getString(cursor.getColumnIndexOrThrow("apellido"))
+            val promocion = cursor.getString(cursor.getColumnIndexOrThrow("promocion"))
+            PagoParaComprobante(
+                nombreCompleto = "$nombre $apellido".trim(),
+                dni = cursor.getString(cursor.getColumnIndexOrThrow("dni")),
+                fechaPago = fechaPago,
+                tipo = TipoCuota.valueOf(cursor.getString(cursor.getColumnIndexOrThrow("tipo"))),
+                montoFinal = cursor.getDouble(cursor.getColumnIndexOrThrow("monto_final")),
+                medioPago = MedioPago.valueOf(medio),
+                promocion = promocion?.takeIf { it.isNotBlank() }?.let(Promocion::valueOf)
+            )
+        }
     }
 
     fun obtenerCuotasPorCliente(clienteId: Int): List<Cuota> {
         val db = readableDatabase
         val listaCuotas = mutableListOf<Cuota>()
+        val hoy = LocalDate.now()
 
         val cursor = db.rawQuery(
             "SELECT * FROM cuotas WHERE cliente_id = ? ORDER BY id DESC",
@@ -192,6 +179,7 @@ class CuotasDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db
 
             while (c.moveToNext()) {
                 val fechaPagoTexto = c.getString(c.getColumnIndexOrThrow("fecha_pago"))
+                val vencimiento = parsearVencimiento(c.getString(c.getColumnIndexOrThrow("fecha_vencimiento")), formatter)
                 val medioPagoTexto = c.getString(c.getColumnIndexOrThrow("medio_pago"))
                 val promocionTexto = c.getString(c.getColumnIndexOrThrow("promocion"))
 
@@ -202,8 +190,9 @@ class CuotasDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db
                     monto = c.getDouble(c.getColumnIndexOrThrow("monto")),
                     montoFinal = c.getDouble(c.getColumnIndexOrThrow("monto_final")),
                     fecha = fechaPagoTexto?.let { fecha -> LocalDate.parse(fecha, formatter) },
-                    fechaVencimiento = LocalDate.parse(c.getString(c.getColumnIndexOrThrow("fecha_vencimiento")), formatter),
-                    estado = EstadoCuota.valueOf(c.getString(c.getColumnIndexOrThrow("estado"))),
+                    fechaVencimiento = vencimiento,
+                    estado = EstadoCuota.valueOf(c.getString(c.getColumnIndexOrThrow("estado")))
+                        .alConsultar(vencimiento, hoy),
                     medioPago = if (!medioPagoTexto.isNullOrBlank()) MedioPago.valueOf(medioPagoTexto) else null,
                     promocion = if (!promocionTexto.isNullOrBlank()) Promocion.valueOf(promocionTexto) else null
                 )
@@ -217,6 +206,7 @@ class CuotasDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db
 
     fun obtenerCuotaImpagaPorCliente(clienteId: Int): Cuota? {
         val db = readableDatabase
+        val hoy = LocalDate.now()
 
         val cursor = db.rawQuery(
             """
@@ -236,6 +226,7 @@ class CuotasDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db
         cursor.use { c ->
             if (c.moveToFirst()) {
                 val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+                val vencimiento = parsearVencimiento(c.getString(c.getColumnIndexOrThrow("fecha_vencimiento")), formatter)
                 val fechaPagoTexto = c.getString(c.getColumnIndexOrThrow("fecha_pago"))
                 val medioPagoTexto = c.getString(c.getColumnIndexOrThrow("medio_pago"))
                 val promocionTexto = c.getString(c.getColumnIndexOrThrow("promocion"))
@@ -247,8 +238,9 @@ class CuotasDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db
                     monto = c.getDouble(c.getColumnIndexOrThrow("monto")),
                     montoFinal = c.getDouble(c.getColumnIndexOrThrow("monto_final")),
                     fecha = fechaPagoTexto?.let { fecha -> LocalDate.parse(fecha, formatter) },
-                    fechaVencimiento = LocalDate.parse(c.getString(c.getColumnIndexOrThrow("fecha_vencimiento")), formatter),
-                    estado = EstadoCuota.valueOf(c.getString(c.getColumnIndexOrThrow("estado"))),
+                    fechaVencimiento = vencimiento,
+                    estado = EstadoCuota.valueOf(c.getString(c.getColumnIndexOrThrow("estado")))
+                        .alConsultar(vencimiento, hoy),
                     medioPago = if (!medioPagoTexto.isNullOrBlank()) MedioPago.valueOf(medioPagoTexto) else null,
                     promocion = if (!promocionTexto.isNullOrBlank()) Promocion.valueOf(promocionTexto) else null
                 )
@@ -274,7 +266,7 @@ class CuotasDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db
 
         cursor.use { c ->
             while (c.moveToNext()) {
-                val fechaVencimiento = LocalDate.parse(c.getString(c.getColumnIndexOrThrow("fecha_vencimiento")), formatter)
+                val fechaVencimiento = parsearVencimiento(c.getString(c.getColumnIndexOrThrow("fecha_vencimiento")), formatter)
 
                 if (!fechaVencimiento.isAfter(hoy)) {
                     val fechaPagoTexto = c.getString(c.getColumnIndexOrThrow("fecha_pago"))
@@ -290,7 +282,8 @@ class CuotasDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db
                             montoFinal = c.getDouble(c.getColumnIndexOrThrow("monto_final")),
                             fecha = fechaPagoTexto?.let { fecha -> LocalDate.parse(fecha, formatter) },
                             fechaVencimiento = fechaVencimiento,
-                            estado = EstadoCuota.valueOf(c.getString(c.getColumnIndexOrThrow("estado"))),
+                            estado = EstadoCuota.valueOf(c.getString(c.getColumnIndexOrThrow("estado")))
+                                .alConsultar(fechaVencimiento, hoy),
                             medioPago = if (!medioPagoTexto.isNullOrBlank()) MedioPago.valueOf(medioPagoTexto) else null,
                             promocion = if (!promocionTexto.isNullOrBlank()) Promocion.valueOf(promocionTexto) else null
                         )
@@ -306,6 +299,7 @@ class CuotasDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db
         val db = readableDatabase
         val lista = mutableListOf<PagoHistorialItem>()
         val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+        val hoy = LocalDate.now()
 
         val consulta = """
             SELECT 
@@ -338,6 +332,7 @@ class CuotasDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db
             while (c.moveToNext()) {
                 val nombre = c.getString(c.getColumnIndexOrThrow("nombre")) ?: ""
                 val apellido = c.getString(c.getColumnIndexOrThrow("apellido")) ?: ""
+                val vencimiento = parsearVencimiento(c.getString(c.getColumnIndexOrThrow("fecha_vencimiento")), formatter)
                 val fechaPagoTexto = c.getString(c.getColumnIndexOrThrow("fecha_pago"))
                 val medioPagoTexto = c.getString(c.getColumnIndexOrThrow("medio_pago"))
 
@@ -349,12 +344,10 @@ class CuotasDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db
                         dni = c.getString(c.getColumnIndexOrThrow("dni")) ?: "",
                         tipo = TipoCuota.valueOf(c.getString(c.getColumnIndexOrThrow("tipo"))),
                         montoFinal = c.getDouble(c.getColumnIndexOrThrow("monto_final")),
-                        fechaVencimiento = LocalDate.parse(
-                            c.getString(c.getColumnIndexOrThrow("fecha_vencimiento")),
-                            formatter
-                        ),
+                        fechaVencimiento = vencimiento,
                         fechaPago = fechaPagoTexto?.let { fecha -> LocalDate.parse(fecha, formatter) },
-                        estado = EstadoCuota.valueOf(c.getString(c.getColumnIndexOrThrow("estado"))),
+                        estado = EstadoCuota.valueOf(c.getString(c.getColumnIndexOrThrow("estado")))
+                            .alConsultar(vencimiento, hoy),
                         medioPago = if (!medioPagoTexto.isNullOrBlank()) MedioPago.valueOf(medioPagoTexto) else null
                     )
                 )
@@ -362,5 +355,69 @@ class CuotasDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db
         }
 
         return lista
+    }
+
+    internal data class VigenciaMensual(val fechaPago: LocalDate, val vencimiento: LocalDate)
+
+    companion object {
+        internal fun insertarCuotaInicial(
+            db: SQLiteDatabase,
+            clienteId: Int,
+            tipo: TipoCuota,
+            monto: Double,
+            montoFinal: Double,
+            fechaVencimiento: LocalDate
+        ): Long {
+            val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+            val valores = ContentValues().apply {
+                put("cliente_id", clienteId)
+                put("tipo", tipo.name)
+                put("monto", monto)
+                put("monto_final", montoFinal)
+                putNull("fecha_pago")
+                put("fecha_vencimiento", fechaVencimiento.format(formatter))
+                putNull("medio_pago")
+                putNull("promocion")
+                put("estado", EstadoCuota.PENDIENTE.name)
+            }
+            return db.insertOrThrow("cuotas", null, valores)
+        }
+
+        internal fun obtenerVigenciaMensual(db: SQLiteDatabase, clienteId: Int, hoy: LocalDate): VigenciaMensual? {
+            val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+            return db.rawQuery(
+                """
+                    SELECT fecha_pago, fecha_vencimiento FROM cuotas
+                    WHERE cliente_id = ? AND tipo = 'MENSUAL' AND UPPER(estado) = 'PAGADA'
+                    ORDER BY id DESC
+                """.trimIndent(),
+                arrayOf(clienteId.toString())
+            ).use { cursor ->
+                var vigente: VigenciaMensual? = null
+                while (cursor.moveToNext()) {
+                    val fechaPago = cursor.getString(0) ?: continue
+                    val vigencia = try {
+                        VigenciaMensual(
+                            parsearVencimiento(fechaPago, formatter),
+                            parsearVencimiento(cursor.getString(1), formatter)
+                        )
+                    } catch (_: DateTimeParseException) {
+                        continue
+                    }
+                    if (!vigencia.vencimiento.isBefore(hoy) &&
+                        (vigente == null || vigencia.vencimiento.isAfter(vigente.vencimiento))
+                    ) {
+                        vigente = vigencia
+                    }
+                }
+                vigente
+            }
+        }
+
+        private fun parsearVencimiento(texto: String, formatter: DateTimeFormatter): LocalDate = try {
+            LocalDate.parse(texto, formatter)
+        } catch (_: DateTimeParseException) {
+            LocalDate.parse(texto)
+        }
     }
 }

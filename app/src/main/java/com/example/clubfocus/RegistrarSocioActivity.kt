@@ -1,6 +1,7 @@
 package com.example.clubfocus
 
 import android.content.Intent
+import android.database.sqlite.SQLiteException
 import android.os.Bundle
 import android.widget.Button
 import android.widget.CheckBox
@@ -10,9 +11,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.doAfterTextChanged
-import com.example.clubfocus.data.repository.CuotaRepository
 import com.example.clubfocus.helperDB.ClientesDBHelper
-import com.example.clubfocus.helperDB.CuotasDBHelper
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -119,31 +118,31 @@ class RegistrarSocioActivity : AppCompatActivity() {
                     return@setOnClickListener
                 }
 
-                // E. Instanciamos el Helper de la base de datos
-                val dbHelper = ClientesDBHelper(this)
+                val resultado = try {
+                    ClientesDBHelper(this).use { dbHelper ->
+                        if (dbHelper.existeCliente(dni)) {
+                            Toast.makeText(
+                                this,
+                                "Ya existe un cliente o socio con ese DNI",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return@setOnClickListener
+                        }
 
-                // Evitamos duplicar DNI
-                if (dbHelper.existeCliente(dni)) {
-                    Toast.makeText(
-                        this,
-                        "Ya existe un cliente o socio con ese DNI",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    return@setOnClickListener
+                        dbHelper.registrarClienteConCuotaInicial(
+                            nombre = nombre,
+                            apellido = apellido,
+                            dni = dni,
+                            fechaNacimiento = fechaTexto,
+                            email = correo,
+                            aptoFisico = presentoApto,
+                            esSocio = esSocio
+                        )
+                    }
+                } catch (_: SQLiteException) {
+                    -1L
                 }
 
-                // F. Guardamos en la tabla SQLite
-                val resultado = dbHelper.agregarCliente(
-                    nombre = nombre,
-                    apellido = apellido,
-                    dni = dni,
-                    fechaNacimiento = fechaTexto,
-                    email = correo,
-                    aptoFisico = presentoApto,
-                    esSocio = esSocio
-                )
-
-                // G. Verificamos el resultado (-1L es error en inserción)
                 if (resultado != -1L) {
                     val tipoUsuario = if (esSocio) "Socio" else "No Socio"
                     Toast.makeText(
@@ -152,34 +151,15 @@ class RegistrarSocioActivity : AppCompatActivity() {
                         Toast.LENGTH_SHORT
                     ).show()
 
-                    val clienteId = resultado.toInt()
-
-                    // Creamos la cuota inicial con los valores de negocio
-                    val cuotasDBHelper = CuotasDBHelper(this)
-
-                    val cuotaInicial = CuotaRepository.prepararCuotaInicial(
-                        clienteId = clienteId,
-                        esSocio = esSocio
-                    )
-
-                    cuotasDBHelper.generarCuotaInicial(
-                        cuotaInicial.clienteId,
-                        cuotaInicial.tipo,
-                        cuotaInicial.monto,
-                        cuotaInicial.montoFinal,
-                        cuotaInicial.fechaVencimiento)
-
-                    // H. Viajamos a la pantalla de confirmación
                     val intent = Intent(this, RegistroExitosoActivity::class.java)
-                    intent.putExtra("clienteId", clienteId)
+                    intent.putExtra("clienteId", resultado.toInt())
                     startActivity(intent)
 
-                    // I. Destruimos esta pantalla para no volver atrás
                     finish()
                 } else {
                     Toast.makeText(
                         this,
-                        "Error al guardar en la base de datos",
+                        R.string.registro_error_alta,
                         Toast.LENGTH_SHORT
                     ).show()
                 }

@@ -3,24 +3,19 @@ package com.example.clubfocus.helperDB
 import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteOpenHelper
+import android.database.sqlite.SQLiteException
+import androidx.core.database.sqlite.transaction
 import com.example.clubfocus.data.entity.Cliente
+import com.example.clubfocus.data.entity.EstadoCuota
 import com.example.clubfocus.data.entity.SocioCuotaItem
+import com.example.clubfocus.data.repository.CuotaRepository
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
-class ClientesDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db", null, 1) {
-
-    override fun onCreate(db: SQLiteDatabase) {
-        DBTablas.crearTodasLasTablas(db)
-    }
-
-    override fun onUpgrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) {
-        //TO DO
-    }
+class ClientesDBHelper(context: Context) : ClubFocusDBHelper(context) {
 
     fun agregarCliente(
         nombre: String,
@@ -30,10 +25,41 @@ class ClientesDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.
         email: String,
         aptoFisico: Boolean,
         esSocio: Boolean
-    ): Long {
-        val db = writableDatabase
+    ): Long = writableDatabase.transaction {
+        insertarCliente(this, nombre, apellido, dni, fechaNacimiento, email, aptoFisico, esSocio)
+    }
 
-        val nroSocioGenerado = if (esSocio) obtenerSiguienteNroSocio() else null
+    fun registrarClienteConCuotaInicial(
+        nombre: String,
+        apellido: String,
+        dni: String,
+        fechaNacimiento: String,
+        email: String,
+        aptoFisico: Boolean,
+        esSocio: Boolean
+    ): Long = writableDatabase.transaction {
+        val clienteId = insertarCliente(this, nombre, apellido, dni, fechaNacimiento, email, aptoFisico, esSocio)
+        if (clienteId == -1L) return@transaction -1L
+
+        val cuota = CuotaRepository.prepararCuotaInicial(clienteId.toInt(), esSocio)
+        val cuotaId = CuotasDBHelper.insertarCuotaInicial(
+            this, cuota.clienteId, cuota.tipo, cuota.monto, cuota.montoFinal, cuota.fechaVencimiento
+        )
+        if (cuotaId == -1L) throw SQLiteException("No se insertó la cuota inicial")
+        clienteId
+    }
+
+    private fun insertarCliente(
+        db: SQLiteDatabase,
+        nombre: String,
+        apellido: String,
+        dni: String,
+        fechaNacimiento: String,
+        email: String,
+        aptoFisico: Boolean,
+        esSocio: Boolean
+    ): Long {
+        val nroSocioGenerado = if (esSocio) obtenerSiguienteNroSocio(db) else null
 
         val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
         val fechaInscripcion = formatter.format(Date())
@@ -205,20 +231,16 @@ class ClientesDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.
                     c.nro_socio,
                     c.activo,
                     q.fecha_vencimiento,
-                    q.estado
+                    UPPER(q.estado) AS estado
                 FROM clientes c
                 INNER JOIN cuotas q
                     ON q.cliente_id = c.id
                 WHERE c.es_socio = 1
                   AND (
-                      UPPER(q.estado) = 'VENCIDA'
+                      UPPER(q.estado) IN ('PENDIENTE', 'VENCIDA')
                       OR (
                           UPPER(q.estado) = 'PAGADA'
-                          AND (
-                              SUBSTR(q.fecha_vencimiento, 7, 4) || '-' ||
-                              SUBSTR(q.fecha_vencimiento, 4, 2) || '-' ||
-                              SUBSTR(q.fecha_vencimiento, 1, 2)
-                          ) = DATE('now', 'localtime')
+                          AND q.fecha_vencimiento IN (?, ?)
                       )
                   )
                 ORDER BY
@@ -229,7 +251,7 @@ class ClientesDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.
                     SUBSTR(q.fecha_vencimiento, 7, 4) DESC,
                     SUBSTR(q.fecha_vencimiento, 4, 2) DESC,
                     SUBSTR(q.fecha_vencimiento, 1, 2) DESC
-            """.trimIndent(), null
+            """.trimIndent(), arrayOf(hoy.format(formatter), hoy.toString())
         )
 
         cursor.use { c ->
@@ -246,15 +268,16 @@ class ClientesDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.
                     }
                 }
 
-                // Si la cuota vence en días posteriores a hoy, no pertenece a este listado
-                if (fechaVencLocalDate != null && fechaVencLocalDate.isAfter(hoy)) {
+                val estadoCuota = EstadoCuota.valueOf(c.getString(c.getColumnIndexOrThrow("estado")))
+                    .alConsultar(fechaVencLocalDate, hoy)
+
+                if (estadoCuota == EstadoCuota.PENDIENTE || fechaVencLocalDate?.isAfter(hoy) == true) {
                     continue
                 }
 
                 val nombre = c.getString(c.getColumnIndexOrThrow("nombre")) ?: ""
                 val apellido = c.getString(c.getColumnIndexOrThrow("apellido")) ?: ""
                 val nroSocio = c.getString(c.getColumnIndexOrThrow("nro_socio")) ?: ""
-                val estadoCuota = c.getString(c.getColumnIndexOrThrow("estado"))
 
                 val socio = SocioCuotaItem(
                     cuotaId = c.getInt(c.getColumnIndexOrThrow("cuota_id")),
@@ -264,7 +287,7 @@ class ClientesDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.
                     nroSocio = nroSocio,
                     fechaVencimiento = fechaVencimiento,
                     activo = c.getInt(c.getColumnIndexOrThrow("activo")) == 1,
-                    estadoCuota = estadoCuota
+                    estadoCuota = estadoCuota.name
                 )
 
                 lista.add(socio)
@@ -349,85 +372,66 @@ class ClientesDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.
         )
     }
 
-    fun darDeBajaSocio(id: Int): Int {
-
-        val db = writableDatabase
-
+    fun darDeBajaSocio(id: Int): Int = writableDatabase.transaction {
         val valores = ContentValues().apply {
             put("es_socio", 0)
-            putNull("nro_socio")
-        }
-
-        val filas = db.update(
-            "clientes",
-            valores,
-            "id = ?",
-            arrayOf(id.toString())
-        )
-
-        // Eliminar la última cuota pendiente
-        if (filas > 0) {
-            actualizarUltimaCuotaPendiente(db, id, false)
-        }
-
-        return filas
-    }
-
-    fun asociarCliente(id: Int): Int {
-
-        val db = writableDatabase
-
-        // Consultar si el cliente ya tiene número de socio
-        val cursor = db.rawQuery(
-            "SELECT nro_socio FROM clientes WHERE id = ?",
-            arrayOf(id.toString())
-        )
-
-        var nroSocio: String? = null
-
-        cursor.use {
-            if (it.moveToFirst()) {
-                nroSocio = it.getString(0)
-            }
-        }
-
-        // Generar número solamente si todavía no tiene uno
-        if (nroSocio.isNullOrEmpty()) {
-            nroSocio = obtenerSiguienteNroSocio()
-        }
-
-        val valores = ContentValues().apply {
-            put("es_socio", 1)
-            put("nro_socio", nroSocio)
             put("activo", 0)
         }
 
-        val filas = db.update(
+        val filas = update(
             "clientes",
             valores,
-            "id = ?",
+            "id = ? AND es_socio = 1",
             arrayOf(id.toString())
         )
 
-        // Eliminar la última cuota pendiente
         if (filas > 0) {
-            actualizarUltimaCuotaPendiente(db, id, true)
+            actualizarUltimaCuotaPendiente(this, id, false)
         }
 
-        return filas
+        filas
     }
 
-    private fun obtenerSiguienteNroSocio(): String {
-        val db = readableDatabase
+    fun asociarCliente(id: Int): Int = writableDatabase.transaction {
+        val nroGuardado = rawQuery(
+            "SELECT nro_socio FROM clientes WHERE id = ? AND es_socio = 0",
+            arrayOf(id.toString())
+        ).use { cursor ->
+            if (!cursor.moveToFirst()) return@transaction 0
+            cursor.getString(0)
+        }
 
+        val nroSocio = nroGuardado?.takeIf { it.isNotBlank() } ?: obtenerSiguienteNroSocio(this)
+        val vigencia = CuotasDBHelper.obtenerVigenciaMensual(this, id, LocalDate.now())
+        val valores = ContentValues().apply {
+            put("es_socio", 1)
+            put("nro_socio", nroSocio)
+            put("activo", if (vigencia != null) 1 else 0)
+        }
+
+        val filas = update("clientes", valores, "id = ?", arrayOf(id.toString()))
+        if (filas > 0) {
+            actualizarUltimaCuotaPendiente(this, id, true)
+            if (vigencia != null) {
+                CarnetDBHelper.guardarVigencia(this, nroSocio, vigencia.fechaPago, vigencia.vencimiento)
+            }
+        }
+
+        filas
+    }
+
+    private fun obtenerSiguienteNroSocio(db: SQLiteDatabase): String {
         val cursor = db.rawQuery(
             """
-        SELECT nro_socio
-        FROM clientes
-        WHERE nro_socio LIKE 'CAR100%'
-        ORDER BY CAST(SUBSTR(nro_socio, 7) AS INTEGER) DESC
-        LIMIT 1
-        """.trimIndent(),
+                SELECT nro_socio FROM (
+                    SELECT nro_socio FROM clientes
+                    UNION ALL
+                    SELECT nro_socio FROM carnets
+                )
+                WHERE nro_socio LIKE 'CAR100%'
+                ORDER BY CAST(SUBSTR(nro_socio, 7) AS INTEGER) DESC
+                LIMIT 1
+            """.trimIndent(),
             null
         )
 

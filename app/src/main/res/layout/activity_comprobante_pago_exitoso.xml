@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<LinearLayout
+<ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:background="@color/white">
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="#FFFFFF"
     android:paddingHorizontal="24dp"
     android:paddingTop="60dp"
     android:paddingBottom="24dp">
@@ -29,7 +34,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Comprobante de Pago"
+        android:text="@string/comprobante_titulo"
         android:textSize="28sp"
         android:textStyle="bold"
         android:textColor="@color/black"
@@ -155,7 +160,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="TOTAL ABONADO:"
+            android:text="@string/comprobante_total_abonado"
             android:textSize="17sp"
             android:textStyle="bold"
             android:textColor="@color/black" />
@@ -171,17 +176,11 @@
 
     </LinearLayout>
 
-    <!-- BOTÓN IMPRIMIR -->
-
-
-    <ImageView
-        android:id="@+id/btnImprimirComprobante"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:src="@drawable/ic_printer"
-        android:layout_gravity="end"
-        android:padding="20dp"
-        style="@style/BgCircle" />
+    <Button
+        android:id="@+id/btnOpcionesComprobantePdf"
+        style="@style/ButtonPrimaryL"
+        android:gravity="center"
+        android:text="@string/comprobante_pdf_opciones" />
 
     <TextView
         android:layout_width="match_parent"
@@ -195,3 +194,4 @@
         android:lineSpacingExtra="2dp" />
 
 </LinearLayout>
+</ScrollView>

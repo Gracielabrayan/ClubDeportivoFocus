@@ -3,50 +3,18 @@ package com.example.clubfocus.helperDB
 import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteOpenHelper
+import androidx.core.database.sqlite.transaction
 import com.example.clubfocus.data.entity.CarnetListado
+import com.example.clubfocus.data.entity.TipoCuota
+import com.example.clubfocus.data.repository.CuotaRepository
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-class CarnetDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db", null, 1) {
+class CarnetDBHelper(context: Context) : ClubFocusDBHelper(context) {
 
-    override fun onCreate(db: SQLiteDatabase) {
-        DBTablas.crearTodasLasTablas(db)
-    }
-
-    override fun onUpgrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) {
-        //TO DO
-    }
-
-    fun crearCarnet(nroSocio: String): Long {
-        val db = writableDatabase
-
-        val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-        val fechaEmision = LocalDate.now()
-        val fechaVencimiento = fechaEmision.plusMonths(1)
-
-        val valores = ContentValues().apply {
-            put("nro_socio", nroSocio)
-            put("fecha_emision", fechaEmision.format(formatter))
-            put("fecha_vencimiento", fechaVencimiento.format(formatter))
-        }
-
-        return db.insert("carnets", null, valores)
-    }
-
-    fun renovarCarnet(carnetId: Int, ): Int {
-        val db = writableDatabase
-        val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-
-        val nuevaFechaEmision = LocalDate.now()
-        val nuevaFechaVencimiento = nuevaFechaEmision.plusMonths(1)
-
-        val valores = ContentValues().apply {
-            put("fecha_emision", nuevaFechaEmision.format(formatter))
-            put("fecha_vencimiento", nuevaFechaVencimiento.format(formatter))
-        }
-
-        return db.update("carnets", valores, "id = ?", arrayOf(carnetId.toString()))
+    fun emitirORenovarPorPago(nroSocio: String, fechaPago: LocalDate) = writableDatabase.transaction {
+        val vencimiento = CuotaRepository.calcularFechaVencimiento(fechaPago, TipoCuota.MENSUAL)
+        guardarVigencia(this, nroSocio, fechaPago, vencimiento)
     }
 
     fun obtenerCarnetsConDatosSocio(): List<CarnetListado> {
@@ -66,6 +34,7 @@ class CarnetDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db
             FROM carnets
             INNER JOIN clientes
                 ON carnets.nro_socio = clientes.nro_socio
+            WHERE clientes.es_socio = 1 AND clientes.activo = 1
             ORDER BY clientes.apellido ASC
         """.trimIndent()
 
@@ -124,7 +93,7 @@ class CarnetDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db
             FROM carnets
             INNER JOIN clientes
                 ON carnets.nro_socio = clientes.nro_socio
-            WHERE carnets.id = ?
+            WHERE carnets.id = ? AND clientes.es_socio = 1 AND clientes.activo = 1
             LIMIT 1
         """.trimIndent()
 
@@ -179,7 +148,7 @@ class CarnetDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db
                 FROM carnets
                 INNER JOIN clientes
                     ON carnets.nro_socio = clientes.nro_socio
-                WHERE clientes.dni = ?
+                WHERE clientes.dni = ? AND clientes.es_socio = 1 AND clientes.activo = 1
                 ORDER BY carnets.id DESC
                 LIMIT 1
             """.trimIndent(),
@@ -205,6 +174,26 @@ class CarnetDBHelper(context: Context) : SQLiteOpenHelper(context, "ClubFocus.db
                 )
             } else {
                 null
+            }
+        }
+    }
+
+    companion object {
+        internal fun guardarVigencia(
+            db: SQLiteDatabase,
+            nroSocio: String,
+            emision: LocalDate,
+            vencimiento: LocalDate
+        ) {
+            val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+            val valores = ContentValues().apply {
+                put("fecha_emision", emision.format(formatter))
+                put("fecha_vencimiento", vencimiento.format(formatter))
+            }
+
+            if (db.update("carnets", valores, "nro_socio = ?", arrayOf(nroSocio)) == 0) {
+                valores.put("nro_socio", nroSocio)
+                db.insertOrThrow("carnets", null, valores)
             }
         }
     }

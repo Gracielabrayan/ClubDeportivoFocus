@@ -30,7 +30,7 @@
         android:textSize="22sp"
         android:textStyle="bold" />
 
-    <!-- IMPRIMIR COMPROBANTE -->
+    <!-- VER COMPROBANTE -->
     <TextView
         android:id="@+id/btnImprimirComprobante"
         android:layout_width="match_parent"
@@ -40,11 +40,11 @@
         android:clickable="true"
         android:focusable="true"
         android:gravity="center"
-        android:text="Imprimir comprobante"
+        android:text="@string/comprobante_ver"
         android:textColor="#FFFFFF"
         android:textSize="14sp" />
 
-    <!-- IMPRIMIR CARNET -->
+    <!-- VER CARNET -->
     <TextView
         android:id="@+id/btnImprimirCarnet"
         android:layout_width="match_parent"
@@ -54,7 +54,7 @@
         android:clickable="true"
         android:focusable="true"
         android:gravity="center"
-        android:text="Imprimir carnet (Solo socios)"
+        android:text="@string/carnet_ver"
         android:textColor="#FFFFFF"
         android:textSize="14sp" />
 

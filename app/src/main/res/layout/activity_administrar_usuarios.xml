@@ -73,6 +73,7 @@
             android:background="@drawable/bg_borde_texto"
             android:hint="@string/admin_panel_contrasena_hint"
             android:inputType="textPassword"
+            android:saveEnabled="false"
             android:maxLines="1" />
 
         <Button

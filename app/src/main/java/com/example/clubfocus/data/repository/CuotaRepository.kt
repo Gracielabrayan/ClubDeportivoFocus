@@ -20,7 +20,7 @@ object CuotaRepository {
     }
 
     // Cálculo automático del vencimiento
-    private fun calcularFechaVencimiento(
+    internal fun calcularFechaVencimiento(
         fecha: LocalDate,
         tipo: TipoCuota
     ): LocalDate {

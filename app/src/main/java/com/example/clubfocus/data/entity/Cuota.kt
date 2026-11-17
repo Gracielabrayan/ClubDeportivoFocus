@@ -23,7 +23,14 @@ enum class TipoCuota {
 enum class EstadoCuota {
     PAGADA,
     PENDIENTE,
-    VENCIDA
+    VENCIDA;
+
+    fun alConsultar(fechaVencimiento: LocalDate?, hoy: LocalDate): EstadoCuota =
+        if (this == PENDIENTE && fechaVencimiento != null && fechaVencimiento.isBefore(hoy)) {
+            VENCIDA
+        } else {
+            this
+        }
 }
 
 enum class MedioPago {

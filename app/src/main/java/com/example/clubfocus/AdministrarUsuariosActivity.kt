@@ -2,6 +2,7 @@ package com.example.clubfocus
 
 import android.os.Bundle
 import android.content.res.ColorStateList
+import android.database.sqlite.SQLiteException
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.Button
@@ -11,8 +12,13 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
+import com.example.clubfocus.data.Contrasenas
 import com.example.clubfocus.helperDB.UsuariosDBHelper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class AdministrarUsuariosActivity : AppCompatActivity() {
 
@@ -43,7 +49,8 @@ class AdministrarUsuariosActivity : AppCompatActivity() {
 
         val etUsuario = findViewById<EditText>(R.id.etAdminUsuario)
         val etContrasena = findViewById<EditText>(R.id.etAdminContrasena)
-        findViewById<Button>(R.id.btnCrearAdministrador).setOnClickListener {
+        val botonCrear = findViewById<Button>(R.id.btnCrearAdministrador)
+        botonCrear.setOnClickListener {
             val usuario = etUsuario.text.toString().trim()
             val contrasena = etContrasena.text.toString()
 
@@ -51,15 +58,30 @@ class AdministrarUsuariosActivity : AppCompatActivity() {
                 Toast.makeText(this, R.string.admin_panel_campos_obligatorios, Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
+            if (!Contrasenas.esValidaParaAlta(contrasena)) {
+                etContrasena.error = getString(R.string.contrasena_requisitos)
+                return@setOnClickListener
+            }
 
-            val id = usuariosHelper.crearAdministrador(usuario, contrasena)
-            if (id != -1L) {
-                etUsuario.text.clear()
-                etContrasena.text.clear()
-                Toast.makeText(this, R.string.admin_panel_creado, Toast.LENGTH_SHORT).show()
-                cargarAdministradores()
-            } else {
-                Toast.makeText(this, R.string.admin_panel_error_crear, Toast.LENGTH_SHORT).show()
+            botonCrear.isEnabled = false
+            lifecycleScope.launch {
+                try {
+                    val id = withContext(Dispatchers.IO) {
+                        UsuariosDBHelper(applicationContext).use { it.crearAdministrador(usuario, contrasena) }
+                    }
+                    if (id != -1L) {
+                        etUsuario.text.clear()
+                        etContrasena.text.clear()
+                        Toast.makeText(this@AdministrarUsuariosActivity, R.string.admin_panel_creado, Toast.LENGTH_SHORT).show()
+                        cargarAdministradores()
+                    } else {
+                        Toast.makeText(this@AdministrarUsuariosActivity, R.string.admin_panel_error_crear, Toast.LENGTH_SHORT).show()
+                    }
+                } catch (_: SQLiteException) {
+                    Toast.makeText(this@AdministrarUsuariosActivity, R.string.login_error_base, Toast.LENGTH_LONG).show()
+                } finally {
+                    botonCrear.isEnabled = true
+                }
             }
         }
 
