@@ -27,6 +27,7 @@ class VencimientosTest {
     fun eliminarDatosDePrueba() {
         clientesDePrueba.forEach { clienteId ->
             val id = arrayOf(clienteId.toString())
+            cuotas.writableDatabase.delete("carnets", "nro_socio IN (SELECT nro_socio FROM clientes WHERE id = ?)", id)
             cuotas.writableDatabase.delete("cuotas", "cliente_id = ?", id)
             clientes.writableDatabase.delete("clientes", "id = ?", id)
         }
@@ -91,7 +92,7 @@ class VencimientosTest {
         assertEquals(1, cuotas.registrarPago(mensual, socio, fechaPago, 45_000.0, MedioPago.EFECTIVO, null))
         assertEquals(1, cuotas.registrarPago(diaria, noSocio, fechaPago, 20_000.0, MedioPago.EFECTIVO, null))
         assertEquals(LocalDate.of(2026, 2, 28), cuotas.obtenerCuotasPorCliente(socio).single().fechaVencimiento)
-        assertEquals(vencimientoOriginal, cuotas.obtenerCuotasPorCliente(noSocio).single().fechaVencimiento)
+        assertEquals(fechaPago, cuotas.obtenerCuotasPorCliente(noSocio).single().fechaVencimiento)
     }
 
     private fun crearCliente(esSocio: Boolean): Int {

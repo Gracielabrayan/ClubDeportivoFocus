@@ -52,6 +52,31 @@
     <string name="admin_panel_solo_superadmin">Solo el superadmin puede administrar usuarios.</string>
     <string name="admin_panel_campos_obligatorios">Completá usuario y contraseña.</string>
     <string name="admin_panel_volver">← Volver</string>
+    <string name="copia_titulo">Copias de seguridad</string>
+    <string name="copia_descripcion">Guardá socios, cuotas, pagos y carnets en un archivo cifrado. Vas a necesitar la contraseña de esa copia para restaurarla.</string>
+    <string name="copia_crear">Crear copia</string>
+    <string name="copia_restaurar">Restaurar copia</string>
+    <string name="copia_contrasena">Contraseña de la copia</string>
+    <string name="copia_continuar">Continuar</string>
+    <string name="copia_guardada">Copia de seguridad guardada.</string>
+    <string name="copia_restaurada">Datos del club restaurados.</string>
+    <string name="copia_no_valida">No se pudo leer la copia. Revisá la contraseña y que el archivo sea válido.</string>
+    <string name="copia_error">No se pudo completar la operación con la copia. Volvé a intentar.</string>
+    <string name="copia_confirmar_titulo">Restaurar datos del club</string>
+    <string name="copia_confirmar_resumen">La copia contiene:\n\nClientes: %1$d\nCuotas: %2$d, de las cuales %3$d están pagadas\nCarnets: %4$d\nCobros anulados: %5$d\n\nSe van a reemplazar los clientes, cuotas, carnets y anulaciones de este dispositivo. Las cuentas de acceso se conservan.</string>
+    <string name="copia_reemplazar">Reemplazar datos</string>
+    <string name="caja_titulo">Resumen de caja</string>
+    <string name="caja_fecha">Fecha %1$s · Cambiar</string>
+    <string name="caja_total">Total cobrado %1$s</string>
+    <string name="caja_efectivo">Efectivo %1$s</string>
+    <string name="caja_debito">Débito %1$s</string>
+    <string name="caja_credito">Crédito %1$s</string>
+    <string name="caja_sin_medio">Sin medio informado %1$s</string>
+    <string name="caja_error">No se pudo consultar el resumen de caja.</string>
+    <plurals name="caja_cobros">
+        <item quantity="one">%d cobro registrado</item>
+        <item quantity="other">%d cobros registrados</item>
+    </plurals>
     <string name="btn_volver">← Volver</string>
 
     <!-- Textos para la pantalla de registro de socio -->
@@ -82,31 +107,20 @@
     <string name="registrar_btn_guardar">GUARDAR REGISTRO</string>
 
     <!-- Textos de la pantalla Cobro de Cuota -->
-    <string name="label_cobro_cuota">Cobro de Cuota</string>
-    <string name="hint_buscar_dni">Ingrese el DNI</string>
 
-    <string name="label_medio_pago">SELECCIONA UN MEDIO DE PAGO</string>
     <string name="pago_efectivo">Efectivo</string>
     <string name="pago_tarjeta_credito">Tarjeta Crédito</string>
     <string name="pago_tarjeta_debito">Tarjeta Débito</string>
 
-    <string name="label_promociones">PROMOCIONES</string>
     <string name="promo_3_cuotas">3 Cuotas 15% OFF</string>
     <string name="promo_6_cuotas">6 Cuotas 10% OFF</string>
 
-    <string name="label_detalle_pago">DETALLES DE PAGO</string>
-    <string name="label_concepto">Concepto: </string>
     <string name="label_concepto_cuota">Cuota </string>
-    <string name="label_monto">Monto</string>
-    <string name="label_descuento">Descuento</string>
-    <string name="label_monto_total">Monto Total</string>
     <string name="monto_inicial_cero">$ 0</string>
     <string name="monto_inicial_final">$ 0</string>
     <string name="descuento_inicial_cero">- $ 0</string>
     <string name="monto_formato">$ %1$s</string>
-    <string name="cliente_encontrado_format">Cliente encontrado: %1$s %2$s</string>
 
-    <string name="btn_confirmar_pago">confirmar pago</string>
     <string name="clientes_correo_obligatorio">Ingresá un correo electrónico válido.</string>
     <string name="clientes_apto_obligatorio">Marcá que el cliente presentó el apto físico.</string>
     <string name="clientes_asociar_datos_incompletos">Editá la ficha antes de asociar al cliente. %1$s</string>
@@ -141,7 +155,27 @@
     <string name="carnet_pdf_emision">Fecha de emisión: %1$s</string>
     <string name="carnet_pdf_vencimiento">Fecha de vencimiento: %1$s</string>
     <string name="carnet_no_disponible">El cliente no tiene un carnet habilitado.</string>
-    <string name="carnet_error_despues_del_pago">El pago se registró, pero no se pudo emitir o renovar el carnet.</string>
     <string name="registro_error_alta">No se pudo guardar el registro y su cuota inicial. Volvé a intentar.</string>
 
+    <string name="pago_anular">Anular cobro</string>
+    <string name="pago_anular_motivo">Ingresá el motivo de la anulación</string>
+    <string name="pago_anular_confirmacion">El cobro quedará anulado en el historial y se descontará de la caja. La cuota quedará disponible para cobrar de nuevo.</string>
+    <string name="pago_anular_vencimiento_anterior">Para este cobro se conservará el vencimiento que figura actualmente.</string>
+    <string name="pago_anular_confirmar">Confirmar anulación</string>
+    <string name="pago_anular_exito">Cobro anulado. La cuota se puede volver a cobrar.</string>
+    <string name="pago_anular_error">No se pudo anular el cobro. Revisá el historial y volvé a entrar al comprobante.</string>
+    <string name="historial_pago_anulado">Anulado</string>
+    <string name="historial_anulacion_detalle">Anulado el %1$s por %2$s\nMotivo: %3$s</string>
+    <string name="tarifas_titulo">Configurar tarifas</string>
+    <string name="tarifas_alcance">Los nuevos valores se aplican a las cuotas que se generen después de guardar. Las cuotas pendientes conservan el importe con el que se crearon.</string>
+    <string name="tarifas_mensual">Cuota mensual ($)</string>
+    <string name="tarifas_diaria">Cuota diaria ($)</string>
+    <string name="tarifas_guardar">Guardar tarifas</string>
+    <string name="tarifas_importe_invalido">Ingresá un importe mayor que cero, hasta 999999999,99 y con un máximo de dos decimales. Usá coma o punto decimal.</string>
+    <string name="tarifas_guardadas">Tarifas actualizadas</string>
+    <string name="tarifas_error">No se pudieron guardar las tarifas. Revisá tu acceso e intentá de nuevo.</string>
+    <string name="copia_tarifas_incluidas">La copia también reemplazará las tarifas del club.</string>
+    <string name="copia_tarifas_anteriores">Esta copia conserva las tarifas actuales del dispositivo.</string>
+    <string name="fecha_nacimiento_invalida">Ingresá una fecha de nacimiento válida en formato dd/MM/yyyy, hasta el día de hoy.</string>
+    <string name="clientes_error_guardar">No se pudieron guardar los datos. Revisá el DNI e intentá de nuevo.</string>
 </resources>

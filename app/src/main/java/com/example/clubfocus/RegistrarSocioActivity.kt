@@ -12,8 +12,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.doAfterTextChanged
 import com.example.clubfocus.helperDB.ClientesDBHelper
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
+import com.example.clubfocus.data.FechasClub
 
 class RegistrarSocioActivity : AppCompatActivity() {
 
@@ -89,29 +88,10 @@ class RegistrarSocioActivity : AppCompatActivity() {
 
             } else {
 
-                // D. Validamos que la fecha tenga exactamente el formato dd/MM/yyyy
-                val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-
-                val fechaNacimientoLocalDate = try {
-
-                    // Debe tener exactamente 10 caracteres
-                    if (fechaTexto.length != 10) {
-                        throw Exception()
-                    }
-
-                    // Las barras deben estar en las posiciones correctas
-                    if (fechaTexto[2] != '/' || fechaTexto[5] != '/') {
-                        throw Exception()
-                    }
-
-                    // También verifica que la fecha exista realmente
-                    LocalDate.parse(fechaTexto, formatter)
-
-                } catch (e: Exception) {
-
+                if (!FechasClub.nacimientoValido(fechaTexto)) {
                     Toast.makeText(
                         this,
-                        "La fecha debe tener el formato dd/MM/yyyy.",
+                        R.string.fecha_nacimiento_invalida,
                         Toast.LENGTH_SHORT
                     ).show()
 

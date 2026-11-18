@@ -31,14 +31,7 @@ class UsuariosDBHelper internal constructor(context: Context, nombreDb: String) 
         }
     }
 
-    fun obtenerRolPorUsuario(usuario: String): String? {
-        return readableDatabase.rawQuery(
-            "SELECT rol FROM usuarios WHERE usuario = ?",
-            arrayOf(usuario)
-        ).use { cursor ->
-            if (cursor.moveToFirst()) cursor.getString(cursor.getColumnIndexOrThrow("rol")) else null
-        }
-    }
+    fun obtenerRolPorUsuario(usuario: String): String? = consultarRol(readableDatabase, usuario)
 
     fun obtenerAdministradores(): List<AdministradorCuenta> {
         val administradores = mutableListOf<AdministradorCuenta>()
@@ -83,5 +76,11 @@ class UsuariosDBHelper internal constructor(context: Context, nombreDb: String) 
             "id = ? AND LOWER(rol) = LOWER(?)",
             arrayOf(id.toString(), "Administrador")
         )
+    }
+
+    companion object {
+        internal fun consultarRol(db: SQLiteDatabase, usuario: String): String? = db.rawQuery(
+            "SELECT rol FROM usuarios WHERE usuario = ?", arrayOf(usuario)
+        ).use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
     }
 }

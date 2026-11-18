@@ -2,10 +2,16 @@ package com.example.clubfocus
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 
 class ConfirmarPagoActivity : AppCompatActivity() {
+
+    private val abrirComprobante = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (it.resultCode == RESULT_OK) volverAlMenu()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,8 +34,9 @@ class ConfirmarPagoActivity : AppCompatActivity() {
             intent.getStringExtra("clienteDNI") ?: ""
 
         val cuotaId = intent.getIntExtra(ComprobantePagoExitoso.EXTRA_CUOTA_ID, -1)
+        val clavePago = intent.getStringExtra(ComprobantePagoExitoso.EXTRA_CLAVE_PAGO)
 
-        btnCarnet.alpha = 1f
+        btnCarnet.visibility = if (esSocio) View.VISIBLE else View.GONE
 
         // IR AL COMPROBANTE
 
@@ -38,8 +45,9 @@ class ConfirmarPagoActivity : AppCompatActivity() {
             val intent = Intent(this, ComprobantePagoExitoso::class.java)
 
             intent.putExtra(ComprobantePagoExitoso.EXTRA_CUOTA_ID, cuotaId)
+            intent.putExtra(ComprobantePagoExitoso.EXTRA_CLAVE_PAGO, clavePago)
 
-            startActivity(intent)
+            abrirComprobante.launch(intent)
         }
 
         // IR AL CARNET
@@ -58,13 +66,13 @@ class ConfirmarPagoActivity : AppCompatActivity() {
 
         // VOLVER AL MENÚ
 
-        btnMenu.setOnClickListener {
+        btnMenu.setOnClickListener { volverAlMenu() }
+    }
 
-            val intent = Intent(this, HomeActivity::class.java)
-
-            startActivity(intent)
-
-            finish()
-        }
+    private fun volverAlMenu() {
+        startActivity(Intent(this, HomeActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        })
+        finish()
     }
 }

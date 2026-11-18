@@ -17,10 +17,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.clubfocus.adapter.ClienteBusquedaAdapter
 import com.example.clubfocus.data.entity.Cliente
-import com.example.clubfocus.data.repository.CuotaRepository.prepararCuotaInicial
+import com.example.clubfocus.data.FechasClub
 import com.example.clubfocus.helperDB.ClientesDBHelper
 import com.example.clubfocus.helperDB.CuotasDBHelper
-import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 class ClientesActivity : AppCompatActivity() {
@@ -52,6 +51,11 @@ class ClientesActivity : AppCompatActivity() {
     private var clienteSeleccionado: Cliente? = null
     private var modoEdicion = false
     private val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+
+    override fun onDestroy() {
+        dbHelper.close()
+        super.onDestroy()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -358,23 +362,27 @@ class ClientesActivity : AppCompatActivity() {
         }
 
         // Validar y convertir la fecha
-        val fechaNacimientoLocal = try {
-            LocalDate.parse(fechaNacimiento, formatter)
-        } catch (e: Exception) {
-            etFechaNacimiento.error = "Ingresá una fecha válida (dd/MM/yyyy)"
+        if (!FechasClub.nacimientoValido(fechaNacimiento)) {
+            etFechaNacimiento.error = getString(R.string.fecha_nacimiento_invalida)
             return
         }
+        val fechaNacimientoLocal = FechasClub.parsear(fechaNacimiento)
 
         // Actualizar en la base de datos
-        val resultado = dbHelper.actualizarCliente(
-            id = cliente.id,
-            nombre = nombre,
-            apellido = apellido,
-            dni = dni,
-            fechaNacimiento = fechaNacimientoLocal.format(formatter),
-            email = email,
-            aptoFisico = aptoFisico
-        )
+        val resultado = try {
+            dbHelper.actualizarCliente(
+                id = cliente.id,
+                nombre = nombre,
+                apellido = apellido,
+                dni = dni,
+                fechaNacimiento = fechaNacimientoLocal.format(formatter),
+                email = email,
+                aptoFisico = aptoFisico
+            )
+        } catch (_: SQLiteException) {
+            Toast.makeText(this, R.string.clientes_error_guardar, Toast.LENGTH_LONG).show()
+            return
+        }
 
         if (resultado > 0) {
 

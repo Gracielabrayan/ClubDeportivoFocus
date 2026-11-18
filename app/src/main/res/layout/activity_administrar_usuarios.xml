@@ -40,6 +40,27 @@
             android:textColor="@color/black"
             android:textSize="14sp" />
 
+        <Button
+            android:id="@+id/btnCopiasClub"
+            style="@style/ButtonPrimaryL"
+            android:layout_marginBottom="8dp"
+            android:gravity="center"
+            android:text="@string/copia_titulo" />
+
+        <Button
+            android:id="@+id/btnResumenCaja"
+            style="@style/ButtonPrimaryL"
+            android:layout_marginBottom="8dp"
+            android:gravity="center"
+            android:text="@string/caja_titulo" />
+
+        <Button
+            android:id="@+id/btnTarifas"
+            style="@style/ButtonPrimaryL"
+            android:layout_marginBottom="20dp"
+            android:gravity="center"
+            android:text="@string/tarifas_titulo" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
+        android:paddingTop="50dp"
+        android:paddingBottom="24dp">
+
+        <Button
+            android:id="@+id/btnVolverCopiaClub"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:text="@string/btn_volver"
+            android:textColor="@color/primary" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/copia_titulo"
+            android:textColor="@color/black"
+            android:textSize="26sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="24dp"
+            android:text="@string/copia_descripcion"
+            android:textColor="@color/black"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/btnCrearCopiaClub"
+            style="@style/ButtonPrimaryL"
+            android:enabled="false"
+            android:gravity="center"
+            android:text="@string/copia_crear" />
+
+        <Button
+            android:id="@+id/btnRestaurarCopiaClub"
+            style="@style/ButtonPrimaryL"
+            android:layout_marginTop="12dp"
+            android:enabled="false"
+            android:gravity="center"
+            android:text="@string/copia_restaurar" />
+    </LinearLayout>
+</ScrollView>

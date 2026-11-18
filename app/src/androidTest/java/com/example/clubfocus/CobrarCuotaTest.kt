@@ -45,6 +45,7 @@ class CobrarCuotaTest {
     fun eliminarDatosDePrueba() {
         if (clienteId > 0) {
             val id = arrayOf(clienteId.toString())
+            cuotasHelper.writableDatabase.delete("carnets", "nro_socio IN (SELECT nro_socio FROM clientes WHERE id = ?)", id)
             cuotasHelper.writableDatabase.delete("cuotas", "cliente_id = ?", id)
             clientesHelper.writableDatabase.delete("clientes", "id = ?", id)
         }

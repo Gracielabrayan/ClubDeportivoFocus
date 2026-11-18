@@ -7,7 +7,7 @@
         android:angle="270"
         android:startColor="@color/dark"
         android:centerColor="@color/secondary"
-        android:endColor="@color/gmp_ref_palette_neutral_transparent"
+        android:endColor="@android:color/transparent"
         android:centerX="0.75" />
 
 </shape>

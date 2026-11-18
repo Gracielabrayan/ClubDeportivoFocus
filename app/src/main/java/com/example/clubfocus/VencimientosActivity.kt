@@ -19,8 +19,6 @@ class VencimientosActivity : AppCompatActivity() {
     private lateinit var adapter: SociosCuotaAdapter
     private lateinit var todasLasCuotas: List<SocioCuotaItem>
 
-    private var cuotaSeleccionada: SocioCuotaItem? = null
-
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,12 +36,9 @@ class VencimientosActivity : AppCompatActivity() {
         rvSocios.layoutManager = LinearLayoutManager(this)
 
         // Obtener las cuotas impagas desde SQLite
-        val dbHelper = ClientesDBHelper(this)
-        todasLasCuotas = dbHelper.obtenerVencimientosSocios()
+        todasLasCuotas = ClientesDBHelper(this).use { it.obtenerVencimientosSocios() }
 
         adapter = SociosCuotaAdapter(todasLasCuotas) { cuota ->
-            cuotaSeleccionada = cuota
-
             Toast.makeText(
                 this,
                 "Cuota seleccionada: ${cuota.nroSocio}",

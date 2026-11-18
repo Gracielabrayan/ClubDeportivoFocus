@@ -1,6 +1,7 @@
 package com.example.clubfocus
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Bundle
 import android.view.MotionEvent
 import android.view.inputmethod.EditorInfo
@@ -21,6 +22,7 @@ class ListadoPagoActivity : AppCompatActivity() {
     private lateinit var adapter: HistorialPagoAdapter
     private lateinit var cuotasHelper: CuotasDBHelper
     private var todosLosPagos: List<PagoHistorialItem> = emptyList()
+    private var dniFiltrado = ""
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,18 +31,20 @@ class ListadoPagoActivity : AppCompatActivity() {
         setContentView(R.layout.activity_listado_pago)
 
         cuotasHelper = CuotasDBHelper(this)
+        dniFiltrado = savedInstanceState?.getString("dniFiltrado").orEmpty()
 
         val btnVolver = findViewById<TextView>(R.id.txtVolver)
         val etBuscador = findViewById<EditText>(R.id.etBuscador)
         rvHistorial = findViewById(R.id.rvHistorialPagos)
 
         rvHistorial.layoutManager = LinearLayoutManager(this)
-        adapter = HistorialPagoAdapter(emptyList())
+        adapter = HistorialPagoAdapter(emptyList()) { pago ->
+            startActivity(Intent(this, ComprobantePagoExitoso::class.java).apply {
+                putExtra(ComprobantePagoExitoso.EXTRA_CUOTA_ID, pago.cuotaId)
+                putExtra(ComprobantePagoExitoso.EXTRA_CLAVE_PAGO, pago.clavePago.orEmpty())
+            })
+        }
         rvHistorial.adapter = adapter
-
-        // 1. CARGA DIRECTA: Lista todos los pagos apenas ingresas a la pantalla
-        todosLosPagos = cuotasHelper.obtenerHistorialPagos()
-        adapter.actualizarLista(todosLosPagos)
 
         btnVolver.setOnClickListener {
             finish()
@@ -48,22 +52,11 @@ class ListadoPagoActivity : AppCompatActivity() {
 
         // 2. FILTRAR POR DNI
         fun filtrarPorDni() {
-            val dni = etBuscador.text.toString().trim()
-
-            // Si está vacío, restaura la lista con todos los pagos
-            if (dni.isEmpty()) {
-                adapter.actualizarLista(todosLosPagos)
-                return
-            }
-
-            // Si hay texto, filtra entre los miles de registros por coincidencia
-            val resultado = todosLosPagos.filter {
-                it.dni.contains(dni, ignoreCase = true)
-            }
-
+            dniFiltrado = etBuscador.text.toString().trim()
+            val resultado = pagosFiltrados()
             adapter.actualizarLista(resultado)
 
-            if (resultado.isEmpty()) {
+            if (dniFiltrado.isNotEmpty() && resultado.isEmpty()) {
                 Toast.makeText(this, "No se encontraron pagos para ese DNI", Toast.LENGTH_SHORT).show()
             }
         }
@@ -96,4 +89,22 @@ class ListadoPagoActivity : AppCompatActivity() {
             }
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        todosLosPagos = cuotasHelper.obtenerHistorialPagos()
+        adapter.actualizarLista(pagosFiltrados())
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("dniFiltrado", dniFiltrado)
+        super.onSaveInstanceState(outState)
+    }
+
+    override fun onDestroy() {
+        cuotasHelper.close()
+        super.onDestroy()
+    }
+
+    private fun pagosFiltrados() = todosLosPagos.filter { it.dni.contains(dniFiltrado, ignoreCase = true) }
 }

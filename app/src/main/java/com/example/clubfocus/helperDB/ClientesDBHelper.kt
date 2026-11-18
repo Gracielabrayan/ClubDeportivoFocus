@@ -2,11 +2,14 @@ package com.example.clubfocus.helperDB
 
 import android.content.ContentValues
 import android.content.Context
+import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteException
 import androidx.core.database.sqlite.transaction
 import com.example.clubfocus.data.entity.Cliente
+import com.example.clubfocus.data.FechasClub
 import com.example.clubfocus.data.entity.EstadoCuota
+import com.example.clubfocus.data.entity.TipoCuota
 import com.example.clubfocus.data.entity.SocioCuotaItem
 import com.example.clubfocus.data.repository.CuotaRepository
 import java.text.SimpleDateFormat
@@ -15,7 +18,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
-class ClientesDBHelper(context: Context) : ClubFocusDBHelper(context) {
+class ClientesDBHelper internal constructor(context: Context, nombreDb: String) : ClubFocusDBHelper(context, nombreDb) {
+    constructor(context: Context) : this(context, NOMBRE)
 
     fun agregarCliente(
         nombre: String,
@@ -41,7 +45,7 @@ class ClientesDBHelper(context: Context) : ClubFocusDBHelper(context) {
         val clienteId = insertarCliente(this, nombre, apellido, dni, fechaNacimiento, email, aptoFisico, esSocio)
         if (clienteId == -1L) return@transaction -1L
 
-        val cuota = CuotaRepository.prepararCuotaInicial(clienteId.toInt(), esSocio)
+        val cuota = CuotaRepository.prepararCuotaInicial(clienteId.toInt(), esSocio, TarifasDBHelper.leer(this))
         val cuotaId = CuotasDBHelper.insertarCuotaInicial(
             this, cuota.clienteId, cuota.tipo, cuota.monto, cuota.montoFinal, cuota.fechaVencimiento
         )
@@ -87,132 +91,40 @@ class ClientesDBHelper(context: Context) : ClubFocusDBHelper(context) {
         return existe
     }
 
-    private fun obtenerCantidadSocios(): Int {
-        val db = readableDatabase
-        val cursor = db.rawQuery("SELECT COUNT(*) FROM clientes WHERE es_socio = 1", null)
-        var total = 0
-        cursor.use {
-            if (it.moveToFirst()) {
-                total = it.getInt(0)
-            }
+    fun buscarPorDni(dni: String): Cliente? =
+        readableDatabase.rawQuery("SELECT * FROM clientes WHERE dni = ?", arrayOf(dni)).use {
+            if (it.moveToFirst()) leerCliente(it) else null
         }
-        return total
-    }
-
-    fun buscarPorDni(dni: String): Cliente? {
-        val db = readableDatabase
-        val cursor = db.rawQuery("SELECT * FROM clientes WHERE dni = ?", arrayOf(dni))
-        var clienteEncontrado: Cliente? = null
-
-        if (cursor.moveToFirst()) {
-            val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-            val fechaNacStr = cursor.getString(cursor.getColumnIndexOrThrow("fecha_nacimiento"))
-            val fechaNacLocalDate = try {
-                LocalDate.parse(fechaNacStr, formatter)
-            } catch (_: Exception) {
-                LocalDate.now()
-            }
-            val fechaInscripcionStr = cursor.getString(cursor.getColumnIndexOrThrow("fecha_inscripcion"))
-            val fechaInscripcionLocalDate = LocalDate.parse(fechaInscripcionStr, formatter)
-
-            clienteEncontrado = Cliente(
-                id = cursor.getInt(cursor.getColumnIndexOrThrow("id")),
-                nombre = cursor.getString(cursor.getColumnIndexOrThrow("nombre")),
-                apellido = cursor.getString(cursor.getColumnIndexOrThrow("apellido")),
-                dni = cursor.getString(cursor.getColumnIndexOrThrow("dni")),
-                fechaNacimiento = fechaNacLocalDate,
-                email = cursor.getString(cursor.getColumnIndexOrThrow("email")),
-                aptoFisico = cursor.getInt(cursor.getColumnIndexOrThrow("apto_fisico")) == 1,
-                activo = cursor.getInt(cursor.getColumnIndexOrThrow("activo")) == 1,
-                esSocio = cursor.getInt(cursor.getColumnIndexOrThrow("es_socio")) == 1,
-                fechaInscripcion = fechaInscripcionLocalDate,
-                nroSocio = cursor.getString(cursor.getColumnIndexOrThrow("nro_socio")) ?: ""
-            )
-        }
-
-        cursor.close()
-        return clienteEncontrado
-    }
 
     fun buscarPorDniParcial(dni: String): MutableList<Cliente> {
-
-        val lista = mutableListOf<Cliente>()
-        val db = readableDatabase
-
-        val cursor = db.rawQuery(
+        val clientes = mutableListOf<Cliente>()
+        readableDatabase.rawQuery(
             "SELECT * FROM clientes WHERE dni LIKE ? ORDER BY apellido, nombre",
             arrayOf("$dni%")
-        )
+        ).use { cursor ->
+            while (cursor.moveToNext()) clientes.add(leerCliente(cursor))
+        }
+        return clientes
+    }
 
-        if (cursor.moveToFirst()) {
-            do {
-                val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-
-                val fechaNacStr = cursor.getString(cursor.getColumnIndexOrThrow("fecha_nacimiento"))
-
-                val fechaNacLocalDate = try {
-                    LocalDate.parse(fechaNacStr, formatter)
-                } catch (e: Exception) {
-                    LocalDate.now()
-                }
-
-                val fechaInscripcionStr = cursor.getString(cursor.getColumnIndexOrThrow("fecha_inscripcion"))
-
-                val fechaInscripcionLocalDate = LocalDate.parse(fechaInscripcionStr, formatter)
-
-                val cliente = Cliente(
-                    id = cursor.getInt(cursor.getColumnIndexOrThrow("id")),
-                    nombre = cursor.getString(cursor.getColumnIndexOrThrow("nombre")),
-                    apellido = cursor.getString(cursor.getColumnIndexOrThrow("apellido")),
-                    dni = cursor.getString(cursor.getColumnIndexOrThrow("dni")),
-                    fechaNacimiento = fechaNacLocalDate,
-                    email = cursor.getString(cursor.getColumnIndexOrThrow("email")),
-                    aptoFisico = cursor.getInt(cursor.getColumnIndexOrThrow("apto_fisico")) == 1,
-                    activo = cursor.getInt(cursor.getColumnIndexOrThrow("activo")) == 1,
-                    esSocio = cursor.getInt(cursor.getColumnIndexOrThrow("es_socio")) == 1,
-                    fechaInscripcion = fechaInscripcionLocalDate,
-                    nroSocio = cursor.getString(cursor.getColumnIndexOrThrow("nro_socio")) ?: ""
-                )
-
-                lista.add(cliente)
-
-            } while (cursor.moveToNext())
+    fun buscarPorId(id: Int): Cliente? =
+        readableDatabase.rawQuery("SELECT * FROM clientes WHERE id = ?", arrayOf(id.toString())).use {
+            if (it.moveToFirst()) leerCliente(it) else null
         }
 
-        cursor.close()
-
-        return lista
-    }
-    fun buscarPorId(id: Int): Cliente? {
-        val db = readableDatabase
-        val cursor = db.rawQuery("SELECT * FROM clientes WHERE id = ?", arrayOf(id.toString()))
-
-        cursor.use {
-            if (it.moveToFirst()) {
-                val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-                val fechaNacStr = it.getString(it.getColumnIndexOrThrow("fecha_nacimiento"))
-                val fechaInscripcionStr = it.getString(it.getColumnIndexOrThrow("fecha_inscripcion"))
-                val fechaNacLocalDate = LocalDate.parse(fechaNacStr, formatter)
-                val fechaInscripcionLocalDate = LocalDate.parse(fechaInscripcionStr, formatter)
-
-                return Cliente(
-                    id = it.getInt(it.getColumnIndexOrThrow("id")),
-                    nombre = it.getString(it.getColumnIndexOrThrow("nombre")),
-                    apellido = it.getString(it.getColumnIndexOrThrow("apellido")),
-                    dni = it.getString(it.getColumnIndexOrThrow("dni")),
-                    fechaNacimiento = fechaNacLocalDate,
-                    email = it.getString(it.getColumnIndexOrThrow("email")),
-                    aptoFisico = it.getInt(it.getColumnIndexOrThrow("apto_fisico")) == 1,
-                    activo = it.getInt(it.getColumnIndexOrThrow("activo")) == 1,
-                    esSocio = it.getInt(it.getColumnIndexOrThrow("es_socio")) == 1,
-                    fechaInscripcion = fechaInscripcionLocalDate,
-                    nroSocio = it.getString(it.getColumnIndexOrThrow("nro_socio")) ?: ""
-                )
-            }
-        }
-
-        return null
-    }
+    private fun leerCliente(cursor: Cursor): Cliente = Cliente(
+        id = cursor.getInt(cursor.getColumnIndexOrThrow("id")),
+        nombre = cursor.getString(cursor.getColumnIndexOrThrow("nombre")),
+        apellido = cursor.getString(cursor.getColumnIndexOrThrow("apellido")),
+        dni = cursor.getString(cursor.getColumnIndexOrThrow("dni")),
+        fechaNacimiento = FechasClub.parsear(cursor.getString(cursor.getColumnIndexOrThrow("fecha_nacimiento"))),
+        email = cursor.getString(cursor.getColumnIndexOrThrow("email")),
+        aptoFisico = cursor.getInt(cursor.getColumnIndexOrThrow("apto_fisico")) == 1,
+        activo = cursor.getInt(cursor.getColumnIndexOrThrow("activo")) == 1,
+        esSocio = cursor.getInt(cursor.getColumnIndexOrThrow("es_socio")) == 1,
+        fechaInscripcion = FechasClub.parsear(cursor.getString(cursor.getColumnIndexOrThrow("fecha_inscripcion"))),
+        nroSocio = cursor.getString(cursor.getColumnIndexOrThrow("nro_socio")).orEmpty()
+    )
 
     fun obtenerVencimientosSocios(): List<SocioCuotaItem> {
         val db = readableDatabase
@@ -333,9 +245,8 @@ class ClientesDBHelper(context: Context) : ClubFocusDBHelper(context) {
 
         val fechaActual = LocalDate.now()
 
-        val tipo = if (esSocio) "MENSUAL" else "DIARIA"
-
-        val monto = if (esSocio) 45000.0 else 20000.0
+        val tipo = if (esSocio) TipoCuota.MENSUAL else TipoCuota.DIARIA
+        val monto = TarifasDBHelper.leer(db).monto(tipo)
 
         val fechaVencimiento = if (esSocio) {
             fechaActual.plusMonths(1)
@@ -344,9 +255,10 @@ class ClientesDBHelper(context: Context) : ClubFocusDBHelper(context) {
         }
 
         val valores = ContentValues().apply {
-            put("tipo", tipo)
+            put("tipo", tipo.name)
             put("monto", monto)
             put("monto_final", monto)
+            put("estado", EstadoCuota.PENDIENTE.name)
             put(
                 "fecha_vencimiento",
                 fechaVencimiento.format(
@@ -363,7 +275,7 @@ class ClientesDBHelper(context: Context) : ClubFocusDBHelper(context) {
                 SELECT id
                 FROM cuotas
                 WHERE cliente_id = ?
-                  AND UPPER(estado) = 'PENDIENTE'
+                  AND UPPER(estado) IN ('PENDIENTE', 'VENCIDA')
                 ORDER BY id DESC
                 LIMIT 1
             )
@@ -402,7 +314,7 @@ class ClientesDBHelper(context: Context) : ClubFocusDBHelper(context) {
         }
 
         val nroSocio = nroGuardado?.takeIf { it.isNotBlank() } ?: obtenerSiguienteNroSocio(this)
-        val vigencia = CuotasDBHelper.obtenerVigenciaMensual(this, id, LocalDate.now())
+        val vigencia = CuotasDBHelper.obtenerVigencia(this, id, LocalDate.now(), TipoCuota.MENSUAL)
         val valores = ContentValues().apply {
             put("es_socio", 1)
             put("nro_socio", nroSocio)

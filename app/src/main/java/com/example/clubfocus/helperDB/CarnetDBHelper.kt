@@ -4,13 +4,14 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import androidx.core.database.sqlite.transaction
+import com.example.clubfocus.data.FechasClub
 import com.example.clubfocus.data.entity.CarnetListado
 import com.example.clubfocus.data.entity.TipoCuota
 import com.example.clubfocus.data.repository.CuotaRepository
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
-class CarnetDBHelper(context: Context) : ClubFocusDBHelper(context) {
+class CarnetDBHelper internal constructor(context: Context, nombreDb: String) : ClubFocusDBHelper(context, nombreDb) {
+    constructor(context: Context) : this(context, NOMBRE)
 
     fun emitirORenovarPorPago(nroSocio: String, fechaPago: LocalDate) = writableDatabase.transaction {
         val vencimiento = CuotaRepository.calcularFechaVencimiento(fechaPago, TipoCuota.MENSUAL)
@@ -20,7 +21,6 @@ class CarnetDBHelper(context: Context) : ClubFocusDBHelper(context) {
     fun obtenerCarnetsConDatosSocio(): List<CarnetListado> {
         val lista = mutableListOf<CarnetListado>()
         val db = readableDatabase
-        val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
         val consulta = """
             SELECT
@@ -48,18 +48,8 @@ class CarnetDBHelper(context: Context) : ClubFocusDBHelper(context) {
                         nroSocio = it.getString(
                             it.getColumnIndexOrThrow("nro_socio")
                         ),
-                        fechaEmision = LocalDate.parse(
-                            it.getString(
-                                it.getColumnIndexOrThrow("fecha_emision")
-                            ),
-                            formatter
-                        ),
-                        fechaVencimiento = LocalDate.parse(
-                            it.getString(
-                                it.getColumnIndexOrThrow("fecha_vencimiento")
-                            ),
-                            formatter
-                        ),
+                        fechaEmision = FechasClub.parsear(it.getString(it.getColumnIndexOrThrow("fecha_emision"))),
+                        fechaVencimiento = FechasClub.parsear(it.getString(it.getColumnIndexOrThrow("fecha_vencimiento"))),
                         nombre = it.getString(
                             it.getColumnIndexOrThrow("nombre")
                         ),
@@ -79,7 +69,6 @@ class CarnetDBHelper(context: Context) : ClubFocusDBHelper(context) {
 
     fun buscarCarnetConDatosPorId(carnetId: Int): CarnetListado? {
         val db = readableDatabase
-        val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
         val consulta = """
             SELECT
@@ -109,18 +98,8 @@ class CarnetDBHelper(context: Context) : ClubFocusDBHelper(context) {
                     nroSocio = it.getString(
                         it.getColumnIndexOrThrow("nro_socio")
                     ),
-                    fechaEmision = LocalDate.parse(
-                        it.getString(
-                            it.getColumnIndexOrThrow("fecha_emision")
-                        ),
-                        formatter
-                    ),
-                    fechaVencimiento = LocalDate.parse(
-                        it.getString(
-                            it.getColumnIndexOrThrow("fecha_vencimiento")
-                        ),
-                        formatter
-                    ),
+                    fechaEmision = FechasClub.parsear(it.getString(it.getColumnIndexOrThrow("fecha_emision"))),
+                    fechaVencimiento = FechasClub.parsear(it.getString(it.getColumnIndexOrThrow("fecha_vencimiento"))),
                     nombre = it.getString(
                         it.getColumnIndexOrThrow("nombre")
                     ),
@@ -139,7 +118,6 @@ class CarnetDBHelper(context: Context) : ClubFocusDBHelper(context) {
 
     fun buscarCarnetPorDni(dni: String): CarnetListado? {
         val db = readableDatabase
-        val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
         val cursor = db.rawQuery(
             """
                 SELECT carnets.id, carnets.nro_socio,
@@ -160,14 +138,8 @@ class CarnetDBHelper(context: Context) : ClubFocusDBHelper(context) {
                 CarnetListado(
                     id = it.getInt(it.getColumnIndexOrThrow("id")),
                     nroSocio = it.getString(it.getColumnIndexOrThrow("nro_socio")),
-                    fechaEmision = LocalDate.parse(
-                        it.getString(it.getColumnIndexOrThrow("fecha_emision")),
-                        formatter
-                    ),
-                    fechaVencimiento = LocalDate.parse(
-                        it.getString(it.getColumnIndexOrThrow("fecha_vencimiento")),
-                        formatter
-                    ),
+                    fechaEmision = FechasClub.parsear(it.getString(it.getColumnIndexOrThrow("fecha_emision"))),
+                    fechaVencimiento = FechasClub.parsear(it.getString(it.getColumnIndexOrThrow("fecha_vencimiento"))),
                     nombre = it.getString(it.getColumnIndexOrThrow("nombre")),
                     apellido = it.getString(it.getColumnIndexOrThrow("apellido")),
                     dni = it.getString(it.getColumnIndexOrThrow("dni"))
@@ -185,10 +157,9 @@ class CarnetDBHelper(context: Context) : ClubFocusDBHelper(context) {
             emision: LocalDate,
             vencimiento: LocalDate
         ) {
-            val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
             val valores = ContentValues().apply {
-                put("fecha_emision", emision.format(formatter))
-                put("fecha_vencimiento", vencimiento.format(formatter))
+                put("fecha_emision", emision.format(FechasClub.formato))
+                put("fecha_vencimiento", vencimiento.format(FechasClub.formato))
             }
 
             if (db.update("carnets", valores, "nro_socio = ?", arrayOf(nroSocio)) == 0) {

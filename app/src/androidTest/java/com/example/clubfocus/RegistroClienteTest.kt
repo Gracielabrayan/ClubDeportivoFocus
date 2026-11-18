@@ -38,11 +38,28 @@ class RegistroClienteTest {
         instrumentacion.runOnMainSync { pantallas.asReversed().forEach { it.finish() } }
         clientes.buscarPorDni(dni)?.let { cliente ->
             val id = arrayOf(cliente.id.toString())
+            cuotas.writableDatabase.delete("carnets", "nro_socio IN (SELECT nro_socio FROM clientes WHERE id = ?)", id)
             cuotas.writableDatabase.delete("cuotas", "cliente_id = ?", id)
             clientes.writableDatabase.delete("clientes", "id = ?", id)
         }
         cuotas.close()
         clientes.close()
+    }
+
+    @Test
+    fun rechazaFechasDeNacimientoImposiblesYFuturas() {
+        ActivityScenario.launch(RegistrarSocioActivity::class.java).use { escenario ->
+            escenario.onActivity { activity ->
+                completarFormulario(activity, esSocio = true)
+                val fecha = activity.findViewById<EditText>(R.id.etFechaNacimiento)
+                fecha.setText("31/02/2000")
+                activity.findViewById<Button>(R.id.btnGuardarRegistro).performClick()
+                assertNull(clientes.buscarPorDni(dni))
+                fecha.setText(LocalDate.now().plusDays(1).format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")))
+                activity.findViewById<Button>(R.id.btnGuardarRegistro).performClick()
+                assertNull(clientes.buscarPorDni(dni))
+            }
+        }
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.example.clubfocus
 
 import android.os.Bundle
 import android.content.res.ColorStateList
+import android.content.Intent
 import android.database.sqlite.SQLiteException
 import android.view.Gravity
 import android.view.ViewGroup
@@ -45,6 +46,15 @@ class AdministrarUsuariosActivity : AppCompatActivity() {
 
         findViewById<TextView>(R.id.tvVolverAdministradores).setOnClickListener {
             finish()
+        }
+        findViewById<Button>(R.id.btnCopiasClub).setOnClickListener {
+            startActivity(Intent(this, CopiaClubActivity::class.java))
+        }
+        findViewById<Button>(R.id.btnResumenCaja).setOnClickListener {
+            startActivity(Intent(this, ResumenCajaActivity::class.java))
+        }
+        findViewById<Button>(R.id.btnTarifas).setOnClickListener {
+            startActivity(Intent(this, TarifasActivity::class.java))
         }
 
         val etUsuario = findViewById<EditText>(R.id.etAdminUsuario)
@@ -160,4 +170,9 @@ class AdministrarUsuariosActivity : AppCompatActivity() {
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
+
+    override fun onDestroy() {
+        usuariosHelper.close()
+        super.onDestroy()
+    }
 }

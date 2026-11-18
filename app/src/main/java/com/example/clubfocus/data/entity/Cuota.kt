@@ -56,5 +56,9 @@ data class PagoHistorialItem(
     val fechaPago: LocalDate?,
     val fechaVencimiento: LocalDate,
     val estado: EstadoCuota,
-    val medioPago: MedioPago?
+    val medioPago: MedioPago?,
+    val clavePago: String? = null,
+    val anulacion: AnulacionPago? = null
 )
+
+data class AnulacionPago(val fecha: String, val usuario: String, val motivo: String)

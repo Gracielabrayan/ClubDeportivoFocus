@@ -18,70 +18,10 @@
 
     </style>
 
-    <style name="ButtonPrimaryS" parent="ButtonBase">
-        <item name="android:layout_width">wrap_content</item>
-        <item name="android:textColor">@color/white</item>
-        <item name="strokeColor">@color/secondary</item>
-        <item name="backgroundTint">@color/primary</item>
-
-    </style>
-
     <style name="ButtonPrimaryL" parent="ButtonBase">
         <item name="android:textColor">@color/white</item>
         <item name="backgroundTint">@color/primary</item>
 
-    </style>
-
-    <style name="ButtonOutlineS" parent="ButtonBase">
-        <item name="android:layout_width">wrap_content</item>
-        <item name="android:textColor">@color/primary</item>
-        <item name="strokeColor">@color/secondary</item>
-    </style>
-
-    <style name="ButtonOutlineL" parent="ButtonBase">
-        <item name="android:textColor">@color/primary</item>
-        <item name="strokeColor">@color/secondary</item>
-    </style>
-
-    <style name="ButtonDisabled" parent="ButtonBase">
-        <item name="android:textColor">@color/disabled</item>
-        <item name="strokeColor">@color/disabled</item>
-    </style>
-
-    <style name="labelSuccess">
-        <item name="android:layout_width">wrap_content</item>
-        <item name="android:layout_height">wrap_content</item>
-        <item name="android:textColor">@color/success</item>
-        <item name="android:textStyle">bold</item>
-        <item name="android:background">@drawable/label_success</item>
-        <item name="android:gravity">center</item>
-    </style>
-
-    <style name="labelWarning">
-        <item name="android:layout_width">wrap_content</item>
-        <item name="android:layout_height">wrap_content</item>
-        <item name="android:textColor">@color/secondary</item>
-        <item name="android:textStyle">bold</item>
-        <item name="android:background">@drawable/label_warning</item>
-        <item name="android:gravity">center</item>
-    </style>
-
-    <style name="labelDanger">
-        <item name="android:layout_width">wrap_content</item>
-        <item name="android:layout_height">wrap_content</item>
-        <item name="android:textColor">@color/danger</item>
-        <item name="android:textStyle">bold</item>
-        <item name="android:background">@drawable/label_danger</item>
-        <item name="android:gravity">center</item>
-    </style>
-
-    <style name="labelPrimary">
-        <item name="android:layout_width">wrap_content</item>
-        <item name="android:layout_height">wrap_content</item>
-        <item name="android:textColor">@color/primary</item>
-        <item name="android:textStyle">bold</item>
-        <item name="android:background">@drawable/label_primary</item>
-        <item name="android:gravity">center</item>
     </style>
 
     <!-- MOLDE PARA CAMPOS DE TEXTO (EditText) -->
@@ -110,7 +50,6 @@
 
     <!-- 3. Le damos un espacio de 8dp entre el circulito nuevo y la palabra -->
     <item name="android:drawablePadding">8dp</item>
-
 
     <!-- 5. Pintamos el circulito nuevo para que cambie de color (Blanco/Gris) -->
     <item name="android:drawableTint">@color/button_tint_selector</item>
@@ -143,13 +82,5 @@
         <item name="buttonTint">@color/rb_tint_selector</item>
         <item name="android:button">@null</item>
     </style>
-
-<!--    Estilo icono circular Print y Download-->
-    <style name="BgCircle">
-        <item name="android:background">@drawable/bg_circle</item>
-        <item name="android:width">50dp</item>
-        <item name="android:height">50dp</item>
-    </style>
-
 
 </resources>

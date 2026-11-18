@@ -9,12 +9,32 @@ import java.security.MessageDigest
 
 open class ClubFocusDBHelper internal constructor(context: Context, nombreDb: String = NOMBRE) :
     SQLiteOpenHelper(context, nombreDb, null, VERSION) {
+    final override fun onConfigure(db: SQLiteDatabase) {
+        db.setForeignKeyConstraintsEnabled(true)
+    }
+
     final override fun onCreate(db: SQLiteDatabase) {
         DBTablas.crearTodasLasTablas(db)
     }
 
     final override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) migrarCredenciales(db)
+        if (oldVersion < 3) {
+            db.execSQL("ALTER TABLE cuotas ADD COLUMN vencimiento_antes_del_pago TEXT")
+            db.execSQL("ALTER TABLE cuotas ADD COLUMN clave_pago TEXT")
+            DBTablas.crearPagosAnulados(db)
+        }
+        if (oldVersion < 4) {
+            db.execSQL(
+                """
+                    UPDATE cuotas SET fecha_vencimiento = fecha_pago
+                    WHERE tipo = 'DIARIA' AND estado = 'PAGADA'
+                        AND fecha_pago IS NOT NULL AND TRIM(fecha_pago) <> ''
+                """.trimIndent()
+            )
+        }
+        if (oldVersion < 5) DBTablas.crearTarifas(db)
+        if (oldVersion < 6) DBTablas.crearIndices(db)
     }
 
     private fun migrarCredenciales(db: SQLiteDatabase) {
@@ -48,7 +68,7 @@ open class ClubFocusDBHelper internal constructor(context: Context, nombreDb: St
 
     companion object {
         internal const val NOMBRE = "ClubFocus.db"
-        internal const val VERSION = 2
+        internal const val VERSION = 6
 
         // Identifica exclusivamente las credenciales que la versión 1 precargaba.
         private val HUELLAS_DEMOSTRACION_V1 = setOf(

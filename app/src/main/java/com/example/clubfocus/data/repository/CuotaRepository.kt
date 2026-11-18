@@ -2,22 +2,15 @@ package com.example.clubfocus.data.repository
 
 import com.example.clubfocus.data.entity.Cuota
 import com.example.clubfocus.data.entity.EstadoCuota
-import com.example.clubfocus.data.entity.MedioPago
 import com.example.clubfocus.data.entity.Promocion
 import com.example.clubfocus.data.entity.TipoCuota
+import com.example.clubfocus.data.entity.Tarifas
 import java.time.LocalDate
+import java.math.BigDecimal
+import java.math.RoundingMode
 
 object CuotaRepository {
 
-
-    // Monto automático
-    private fun obtenerMonto(tipo: TipoCuota): Double {
-        // Monto de Cuotas según tipo de cliente
-        return when (tipo) {
-            TipoCuota.MENSUAL -> 45000.0
-            TipoCuota.DIARIA -> 20000.0
-        }
-    }
 
     // Cálculo automático del vencimiento
     internal fun calcularFechaVencimiento(
@@ -37,11 +30,12 @@ object CuotaRepository {
         promocion: Promocion
     ): Double {
 
-        return when (promocion) {
-            Promocion.SIN_PROMOCION -> monto
-            Promocion.TRES_CUOTAS -> monto * 0.85
-            Promocion.SEIS_CUOTAS -> monto * 0.90
+        val factor = when (promocion) {
+            Promocion.SIN_PROMOCION -> BigDecimal.ONE
+            Promocion.TRES_CUOTAS -> BigDecimal("0.85")
+            Promocion.SEIS_CUOTAS -> BigDecimal("0.90")
         }
+        return BigDecimal.valueOf(monto).multiply(factor).setScale(2, RoundingMode.HALF_UP).toDouble()
     }
 
     fun aplicarPromocion(
@@ -56,7 +50,8 @@ object CuotaRepository {
     // Devuelve la cuota lista para pasarla al Helper, como un DTO
     fun prepararCuotaInicial(
         clienteId: Int,
-        esSocio: Boolean
+        esSocio: Boolean,
+        tarifas: Tarifas
     ): Cuota {
 
         val tipo = if (esSocio) {
@@ -65,7 +60,7 @@ object CuotaRepository {
             TipoCuota.DIARIA
         }
 
-        val monto = obtenerMonto(tipo)
+        val monto = tarifas.monto(tipo)
         val fechaActual = LocalDate.now()
         val vencimiento = calcularFechaVencimiento(fechaActual, tipo)
 

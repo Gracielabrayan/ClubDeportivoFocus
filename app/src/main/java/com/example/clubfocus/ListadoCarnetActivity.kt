@@ -5,7 +5,6 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.MotionEvent
 import android.view.inputmethod.EditorInfo
-import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
@@ -28,7 +27,6 @@ class ListadoCarnetActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_listado_carnet)
 
-        val carnetDBHelper = CarnetDBHelper(this)
 
         rvCarnets = findViewById(R.id.rvCarnets)
         etBuscador = findViewById(R.id.etBuscador)
@@ -49,7 +47,7 @@ class ListadoCarnetActivity : AppCompatActivity() {
         rvCarnets.adapter = carnetAdapter
 
         // Cargar todos los carnets
-        todosLosCarnets = carnetDBHelper.obtenerCarnetsConDatosSocio()
+        todosLosCarnets = CarnetDBHelper(this).use { it.obtenerCarnetsConDatosSocio() }
         carnetAdapter.actualizarLista(todosLosCarnets)
 
         // Clic sobre el icono de la lupa integrado en el EditText

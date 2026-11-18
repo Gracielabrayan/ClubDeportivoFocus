@@ -37,9 +37,9 @@ internal object Contrasenas {
 
     private fun codificar(bytes: ByteArray): String = Base64.encodeToString(bytes, Base64.NO_WRAP)
 
-    private fun derivar(contrasena: String, sal: ByteArray): ByteArray {
+    internal fun derivar(contrasena: String, sal: ByteArray, iteraciones: Int = ITERACIONES): ByteArray {
         val caracteres = contrasena.toCharArray()
-        val especificacion = PBEKeySpec(caracteres, sal, ITERACIONES, BYTES_HASH * Byte.SIZE_BITS)
+        val especificacion = PBEKeySpec(caracteres, sal, iteraciones, BYTES_HASH * Byte.SIZE_BITS)
         caracteres.fill('\u0000')
         return try {
             SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(especificacion).encoded

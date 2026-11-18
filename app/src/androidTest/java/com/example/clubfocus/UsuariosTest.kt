@@ -59,6 +59,17 @@ class UsuariosTest {
         val contrasenaAnterior = UUID.randomUUID().toString().take(8)
         context.openOrCreateDatabase(nombreDb, Context.MODE_PRIVATE, null).use { db ->
             DBTablas.crearTodasLasTablas(db)
+            db.execSQL("DROP TABLE pagos_anulados")
+            db.execSQL("DROP TABLE cuotas")
+            db.execSQL(
+                """
+                    CREATE TABLE cuotas (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT, cliente_id INTEGER NOT NULL REFERENCES clientes(id),
+                        tipo TEXT NOT NULL, monto REAL NOT NULL, monto_final REAL NOT NULL, fecha_pago TEXT,
+                        fecha_vencimiento TEXT NOT NULL, medio_pago TEXT, promocion TEXT, estado TEXT NOT NULL
+                    )
+                """.trimIndent()
+            )
             db.version = 1
             db.execSQL(
                 "INSERT INTO usuarios(usuario, password, rol) VALUES(?, ?, ?)",
@@ -86,9 +97,10 @@ class UsuariosTest {
             assertTrue(usuarios.requiereSuperAdmin())
             assertEquals("Administrador", usuarios.obtenerRol("admin", contrasenaAnterior))
             val db = usuarios.readableDatabase
-            assertEquals(2, db.version)
+            assertEquals(6, db.version)
             assertNotEquals(contrasenaAnterior, credencial(db, "admin"))
             listOf("clientes", "cuotas", "carnets").forEach { tabla -> assertEquals(1, contar(db, tabla)) }
+            assertEquals(0, contar(db, "pagos_anulados"))
         }
     }
 

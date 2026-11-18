@@ -23,13 +23,14 @@ import com.example.clubfocus.data.entity.TipoCuota
 import com.example.clubfocus.data.repository.CuotaRepository
 import com.example.clubfocus.helperDB.ClientesDBHelper
 import com.example.clubfocus.helperDB.CuotasDBHelper
-import com.example.clubfocus.helperDB.CarnetDBHelper
 import java.time.LocalDate
 class CobrarCuotaActivity : AppCompatActivity() {
 
     // Una única instancia para toda la Activity
     private var cuota: Cuota? = null
     private var cliente: Cliente? = null
+    private lateinit var dbHelper: ClientesDBHelper
+    private lateinit var cuotasHelper: CuotasDBHelper
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,9 +38,8 @@ class CobrarCuotaActivity : AppCompatActivity() {
         setContentView(R.layout.activity_cobrar_cuota)
 
         // Instancias de los Helpers de la base de datos
-        val dbHelper = ClientesDBHelper(this)
-        val cuotasHelper = CuotasDBHelper(this)
-        val carnetHelper = CarnetDBHelper(this)
+        dbHelper = ClientesDBHelper(this)
+        cuotasHelper = CuotasDBHelper(this)
 
         // Id recibido desde la Activity anterior
         val idParam = intent.getIntExtra("clienteId", -1)
@@ -149,25 +149,14 @@ class CobrarCuotaActivity : AppCompatActivity() {
                     return
                 }
 
-                val cuotaAPAgar = CuotaRepository.prepararCuotaInicial(
-                    clienteId = clienteEncontrado.id,
-                    esSocio = clienteEncontrado.esSocio
+                cuotaEncontrada = cuotasHelper.generarCuotaParaCliente(
+                    clienteEncontrado.id, clienteEncontrado.esSocio
                 )
 
-                val cuotaId = cuotasHelper.generarCuotaInicial(
-                    cuotaAPAgar.clienteId,
-                    cuotaAPAgar.tipo,
-                    cuotaAPAgar.monto,
-                    cuotaAPAgar.montoFinal,
-                    cuotaAPAgar.fechaVencimiento
-                )
-
-                if (cuotaId == -1L) {
+                if (cuotaEncontrada == null) {
                     Toast.makeText(this, "No se pudo generar la cuota", Toast.LENGTH_SHORT).show()
                     return
                 }
-
-                cuotaEncontrada = cuotaAPAgar.copy(id = cuotaId.toInt())
             }
 
             cliente = clienteEncontrado
@@ -360,30 +349,31 @@ class CobrarCuotaActivity : AppCompatActivity() {
             CuotaRepository.aplicarPromocion(cuotaActual, promocion)
 
             val fechaPago = LocalDate.now()
-            val resultado = cuotasHelper.registrarPago(
-                cuotaActual.id,
-                fechaPago = fechaPago,
-                montoFinal = cuotaActual.montoFinal,
-                medioPago = formaPago,
-                promocion = promocion,
-                clienteId = clienteActual.id
-            )
+            val clavePago = java.util.UUID.randomUUID().toString()
+            val resultado = try {
+                cuotasHelper.registrarPago(
+                    cuotaActual.id,
+                    fechaPago = fechaPago,
+                    montoFinal = cuotaActual.montoFinal,
+                    medioPago = formaPago,
+                    promocion = promocion,
+                    clienteId = clienteActual.id,
+                    clavePago = clavePago,
+                    montoBaseEsperado = cuotaActual.monto,
+                    tipoEsperado = cuotaActual.tipo
+                )
+            } catch (_: SQLiteException) {
+                0
+            }
 
             if (resultado == 1) {
                 btnConfirmarPago.isEnabled = false
-
-                if (clienteActual.esSocio && cuotaActual.tipo == TipoCuota.MENSUAL) {
-                    try {
-                        carnetHelper.emitirORenovarPorPago(clienteActual.nroSocio, fechaPago)
-                    } catch (_: SQLiteException) {
-                        Toast.makeText(this, R.string.carnet_error_despues_del_pago, Toast.LENGTH_LONG).show()
-                    }
-                }
 
                 val intent = Intent(this, ConfirmarPagoActivity::class.java
                 ).apply {
                     putExtra("esSocio", clienteActual.esSocio)
                     putExtra(ComprobantePagoExitoso.EXTRA_CUOTA_ID, cuotaActual.id)
+                    putExtra(ComprobantePagoExitoso.EXTRA_CLAVE_PAGO, clavePago)
                     putExtra("clienteDNI", clienteActual.dni)
                 }
 
@@ -396,5 +386,11 @@ class CobrarCuotaActivity : AppCompatActivity() {
                 ).show()
             }
         }
+    }
+
+    override fun onDestroy() {
+        dbHelper.close()
+        cuotasHelper.close()
+        super.onDestroy()
     }
 }

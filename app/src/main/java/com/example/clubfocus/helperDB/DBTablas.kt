@@ -50,6 +50,8 @@ object DBTablas {
                 medio_pago TEXT,
                 promocion TEXT,
                 estado TEXT NOT NULL,
+                vencimiento_antes_del_pago TEXT,
+                clave_pago TEXT,
                 FOREIGN KEY (cliente_id) REFERENCES clientes(id)
             )
         """.trimIndent()
@@ -66,6 +68,48 @@ object DBTablas {
                 FOREIGN KEY (nro_socio) REFERENCES clientes(nro_socio)
             )
         """.trimIndent()
+        )
+        crearPagosAnulados(db)
+        crearTarifas(db)
+        crearIndices(db)
+    }
+
+    internal fun crearIndices(db: SQLiteDatabase) {
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_cuotas_cliente_estado ON cuotas(cliente_id, estado, tipo)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_cuotas_estado_fecha_pago ON cuotas(estado, fecha_pago)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_pagos_anulados_cuota ON pagos_anulados(cuota_id)")
+    }
+
+    internal fun crearTarifas(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+                CREATE TABLE IF NOT EXISTS tarifas (
+                    id INTEGER PRIMARY KEY CHECK(id = 1),
+                    mensual_centavos INTEGER NOT NULL CHECK(mensual_centavos BETWEEN 1 AND 99999999999),
+                    diaria_centavos INTEGER NOT NULL CHECK(diaria_centavos BETWEEN 1 AND 99999999999)
+                )
+            """.trimIndent()
+        )
+        db.execSQL("INSERT OR IGNORE INTO tarifas(id, mensual_centavos, diaria_centavos) VALUES(1, 4500000, 2000000)")
+    }
+
+    internal fun crearPagosAnulados(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+                CREATE TABLE IF NOT EXISTS pagos_anulados (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cuota_id INTEGER NOT NULL REFERENCES cuotas(id),
+                    tipo TEXT NOT NULL,
+                    monto_final REAL NOT NULL,
+                    fecha_pago TEXT,
+                    fecha_vencimiento TEXT NOT NULL,
+                    medio_pago TEXT,
+                    promocion TEXT,
+                    fecha_anulacion TEXT NOT NULL,
+                    usuario TEXT NOT NULL,
+                    motivo TEXT NOT NULL
+                )
+            """.trimIndent()
         )
     }
 }
